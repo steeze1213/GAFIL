@@ -24,6 +24,31 @@ public sealed class AppSettings
     // 사용할 모델. 비우면 Claude Code 기본 모델을 따름 (예: "opus", "sonnet", "haiku")
     public string Model { get; set; } = "";
 
+    // 화면 문구 언어: "auto"(Windows 표시 언어를 따름), "ko", "en"
+    public string Language { get; set; } = "auto";
+
+    // 어디서든 GAFIL을 부르는 단축키. 빈 값이면 끔 (예: "Ctrl+Alt+G", "Ctrl+Shift+Space")
+    public string OpenHotkey { get; set; } = "Ctrl+Alt+G";
+
+    // 고양이 모습: 털 색("orange", "black", "white", "gray", "cream"), 옷·소품("none", "crown", "sunglasses", "scarf", "bowtie")
+    public string Skin { get; set; } = "orange";
+    public string Outfit { get; set; } = "none";
+
+    // 화면 조작 때 클릭 전에 그 자리를 표시하고 기다리는 시간(ms). 이 사이에 마우스를 움직이면 멈춤. 0이면 예고 없음
+    public int ScreenPreviewMs { get; set; } = 800;
+
+    // 새 버전 확인 (GitHub Releases, 하루 한 번)
+    public bool CheckUpdates { get; set; } = true;
+    // 이미 알려 준 새 버전 (같은 버전은 한 번만 알림)
+    public string NotifiedVersion { get; set; }
+
+    // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
+    public bool SaveHistory { get; set; } = true;
+
+    // 고양이를 마지막으로 놓은 화면 좌표(실제 픽셀). 다시 켜면 그 모니터에서 시작. 없으면 주 모니터
+    public int? CatScreenX { get; set; }
+    public int? CatScreenY { get; set; }
+
     // ---- 경로 ----
     public static readonly string Dir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeDesk");

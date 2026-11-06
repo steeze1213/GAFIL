@@ -16,6 +16,12 @@ public partial class ApprovalWindow : Window
     {
         InitializeComponent();
 
+        // 언어에 맞는 고정 문구
+        Title = L.T("GAFIL 승인 요청", "GAFIL approval");
+        TitleText.Text = L.T("GAFIL이 허락을 구해요", "GAFIL is asking for permission");
+        AllowButton.Content = L.T("허용", "Allow");
+        DenyButton.Content = L.T("거부", "Deny");
+
         SummaryText.Text = req.Summary;
         DetailText.Text = req.Detail;
         if (!string.IsNullOrEmpty(req.Warning))
@@ -35,7 +41,8 @@ public partial class ApprovalWindow : Window
         {
             var left = _deadline - DateTime.Now;
             if (left <= TimeSpan.Zero) { Approved = false; Close(); return; }
-            CountdownText.Text = $"{(int)left.TotalMinutes}:{left.Seconds:00} 안에 고르지 않으면 자동으로 거부해요";
+            CountdownText.Text = $"{(int)left.TotalMinutes}:{left.Seconds:00} " +
+                L.T("안에 고르지 않으면 자동으로 거부해요", "left before this is denied automatically");
         };
         _countdown.Start();
         Closed += (_, _) => _countdown.Stop();

@@ -100,6 +100,22 @@ public static class ScreenInput
         finally { g.ReleaseHdc(hdc); }
     }
 
+    // ---------------- 커서 위치 ----------------
+
+    // 지금 마우스 커서 위치를 주 모니터 비율(0~1)로. 다른 모니터에 있으면 0~1 밖의 값
+    public static (double X, double Y, int W, int H) CursorNormalized()
+    {
+        IntPtr prev = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        try
+        {
+            int w = GetSystemMetrics(SM_CXSCREEN), h = GetSystemMetrics(SM_CYSCREEN);
+            // 커서를 못 읽으면(보안 화면 등) 크기 0을 돌려줌 → 부르는 쪽에서 '움직임 없음'으로 처리 (0,0으로 오해하지 않게)
+            if (!GetCursorPos(out var p) || w <= 0 || h <= 0) return (0, 0, 0, 0);
+            return ((p.X + 0.5) / w, (p.Y + 0.5) / h, w, h);
+        }
+        finally { if (prev != IntPtr.Zero) SetThreadDpiAwarenessContext(prev); }
+    }
+
     // ---------------- 마우스 ----------------
 
     // x, y: 0~1 (주 모니터 기준)
@@ -277,6 +293,7 @@ public static class ScreenInput
     [DllImport("user32.dll", SetLastError = true)] private static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] private static extern bool GetCursorInfo(ref CURSORINFO ci);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT p);
     [DllImport("user32.dll")] private static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO info);
     [DllImport("user32.dll")] private static extern bool DrawIconEx(IntPtr hdc, int x, int y, IntPtr hIcon, int cx, int cy, int step, IntPtr brush, int flags);
     [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);

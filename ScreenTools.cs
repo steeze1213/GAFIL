@@ -21,6 +21,73 @@ public sealed class ScreenTools
     // 지금 화면 조작이 허용된 상태인지 (승인·긴급 정지는 ClaudeClient가 관리). false면 실행하지 않음
     public Func<bool> IsAllowed { get; set; } = () => false;
 
+    // 클릭 예고: 누르기 전에 그 자리에 표시를 띄우고 이만큼(ms) 기다림. 0이면 예고 없음
+    public Func<int> PreviewMs { get; set; } = () => 0;
+    public Action<double, double> ShowMarker { get; set; }
+    public Action HideMarker { get; set; }
+    // 사용자가 마우스를 직접 움직임 → GAFIL 조작을 멈춤 (ClaudeClient가 긴급 정지와 같게 처리)
+    public Action UserTookOver { get; set; }
+
+    private const double TakeoverPx = 10;   // 이만큼(실제 픽셀) 넘게 커서가 움직이면 사용자가 잡은 것으로 봄
+    private (double X, double Y)? _lastSet;  // GAFIL이 마지막으로 커서를 놓은 자리 (비율)
+
+    // 승인 버튼을 누른 손이 마우스에서 떨어질 시간 (이 동안은 마우스 움직임을 '가로채기'로 보지 않음)
+    private static readonly TimeSpan HandOffGrace = TimeSpan.FromSeconds(1.5);
+    private DateTime _graceUntil = DateTime.MinValue;
+
+    // 새 화면 조작 작업을 시작할 때 (승인 직후) 기록을 지움
+    public void ResetSession()
+    {
+        _lastSet = null;
+        _graceUntil = DateTime.Now + HandOffGrace;
+    }
+
+    private bool InGrace => DateTime.Now < _graceUntil;
+
+    // 사용자가 마우스를 움직였는지: GAFIL이 마지막으로 놓은 자리에서 커서가 벗어났으면 true
+    private bool UserMovedSinceLastAction()
+    {
+        if (InGrace || _lastSet is not (double lx, double ly)) return false;
+        var (cx, cy, w, h) = ScreenInput.CursorNormalized();
+        if (w <= 0) return false;   // 커서를 못 읽음 → 움직임 없음으로 봄
+        return Math.Abs(cx - lx) * w > TakeoverPx || Math.Abs(cy - ly) * h > TakeoverPx;
+    }
+
+    // 긴 동작(끌기·스크롤·더블클릭) 중간에 확인: 멈춤 또는 가로채기
+    private bool Interrupted() => !IsAllowed() || UserMovedSinceLastAction();
+
+    // 실행 전 확인 + 예고: 문제 없으면 null, 멈춰야 하면 오류 결과
+    private async Task<JsonObject> GuardAsync(double? nx = null, double? ny = null)
+    {
+        if (UserMovedSinceLastAction()) return TookOver();
+        int ms = PreviewMs();
+        if (nx is not double x || ny is not double y || ms <= 0) return null;
+
+        ShowMarker?.Invoke(x, y);
+        try
+        {
+            var start = ScreenInput.CursorNormalized();
+            for (int t = 0; t < ms; t += 50)
+            {
+                await Task.Delay(50);
+                if (!IsAllowed()) return Error("사용자가 멈췄어.");
+                var now = ScreenInput.CursorNormalized();
+                if (InGrace) { start = now; continue; }   // 승인 직후엔 손이 떨어지는 움직임을 무시하고 기준점만 갱신
+                if (now.W > 0 && (Math.Abs(now.X - start.X) * now.W > TakeoverPx || Math.Abs(now.Y - start.Y) * now.H > TakeoverPx))
+                    return TookOver();
+            }
+        }
+        finally { HideMarker?.Invoke(); }
+        return null;
+    }
+
+    private JsonObject TookOver()
+    {
+        AppSettings.Log("[화면 조작] 사용자가 마우스를 움직여서 멈춤");
+        UserTookOver?.Invoke();
+        return Error("사용자가 직접 마우스를 움직여서 화면 조작을 멈췄어. 이번 요청에서는 화면 조작을 다시 시도하지 마.");
+    }
+
     // ---------------- MCP(JSON-RPC) 처리 ----------------
 
     public async Task<JsonObject> HandleAsync(JsonObject msg)
@@ -108,7 +175,7 @@ public sealed class ScreenTools
                     // 캡처하는 사이에 사용자가 멈췄으면 화면을 보내지 않음
                     if (!IsAllowed()) return Error("사용자가 멈췄어.");
                     (_shotW, _shotH) = (sw, sh);
-                    Report("화면 보기");
+                    Report(L.T("화면 보기", "Looking at the screen"));
                     return new JsonObject
                     {
                         ["content"] = new JsonArray(
@@ -122,11 +189,14 @@ public sealed class ScreenTools
                     string button = Str(a["button"]) ?? "left";
                     int b = button == "right" ? 2 : button == "middle" ? 1 : 0;
                     bool dbl = a["double"]?.GetValueKind() == System.Text.Json.JsonValueKind.True;
-                    Report($"{(dbl ? "더블클릭" : button == "right" ? "오른쪽 클릭" : "클릭")} ({Num(a, "x"):0}, {Num(a, "y"):0})");
+                    Report($"{(dbl ? L.T("더블클릭", "Double-click") : button == "right" ? L.T("오른쪽 클릭", "Right-click") : L.T("클릭", "Click"))} ({Num(a, "x"):0}, {Num(a, "y"):0})");
+                    if (await GuardAsync(nx, ny) is JsonObject stopC) return stopC;
                     bool sent = ScreenInput.MouseMove(nx, ny);
+                    _lastSet = (nx, ny);
                     await Task.Delay(40);
                     for (int i = 0; i < (dbl ? 2 : 1); i++)
                     {
+                        if (i > 0 && Interrupted()) return !IsAllowed() ? Error("사용자가 멈췄어.") : TookOver();
                         sent &= ScreenInput.MouseButton(b, true);
                         await Task.Delay(30);
                         sent &= ScreenInput.MouseButton(b, false);   // 누른 버튼은 무슨 일이 있어도 뗌
@@ -139,8 +209,10 @@ public sealed class ScreenTools
                 case "move":
                 {
                     var (nx, ny) = Norm(a, "x", "y");
-                    Report($"마우스 이동 ({Num(a, "x"):0}, {Num(a, "y"):0})");
+                    Report(L.T("마우스 이동", "Move mouse") + $" ({Num(a, "x"):0}, {Num(a, "y"):0})");
+                    if (await GuardAsync() is JsonObject stopM) return stopM;
                     if (!ScreenInput.MouseMove(nx, ny)) return Blocked();
+                    _lastSet = (nx, ny);
                     await Task.Delay(200);
                     return Ok("moved");
                 }
@@ -148,20 +220,27 @@ public sealed class ScreenTools
                 {
                     var (x1, y1) = Norm(a, "x1", "y1");
                     var (x2, y2) = Norm(a, "x2", "y2");
-                    Report($"끌기 ({Num(a, "x1"):0}, {Num(a, "y1"):0}) → ({Num(a, "x2"):0}, {Num(a, "y2"):0})");
+                    Report(L.T("끌기", "Drag") + $" ({Num(a, "x1"):0}, {Num(a, "y1"):0}) → ({Num(a, "x2"):0}, {Num(a, "y2"):0})");
+                    if (await GuardAsync(x1, y1) is JsonObject stopD) return stopD;
                     ScreenInput.MouseMove(x1, y1);
                     await Task.Delay(50);
                     ScreenInput.MouseButton(0, true);
                     try
                     {
                         // 앱이 끌기로 인식하도록 여러 단계로 나눠 움직임
+                        _lastSet = (x1, y1);
                         for (int i = 1; i <= 15; i++)
                         {
-                            ScreenInput.MouseMove(x1 + (x2 - x1) * i / 15, y1 + (y2 - y1) * i / 15);
+                            if (Interrupted()) break;   // 멈춤·가로채기: 바로 그만두고 아래 finally에서 버튼을 뗌
+                            double px = x1 + (x2 - x1) * i / 15, py = y1 + (y2 - y1) * i / 15;
+                            ScreenInput.MouseMove(px, py);
+                            _lastSet = (px, py);
                             await Task.Delay(15);
                         }
                     }
                     finally { ScreenInput.MouseButton(0, false); }   // 무슨 일이 있어도 버튼은 뗌
+                    if (!IsAllowed()) return Error("사용자가 멈췄어.");
+                    if (UserMovedSinceLastAction()) return TookOver();
                     await Task.Delay(250);
                     return Ok("dragged");
                 }
@@ -169,7 +248,8 @@ public sealed class ScreenTools
                 {
                     string text = Str(a["text"]) ?? "";
                     if (text.Length > 2000) return Error("한 번에 2000자까지만 입력할 수 있어. 나눠서 입력해.");
-                    Report($"글자 입력 ({text.Length}자)");
+                    Report(L.T($"글자 입력 ({text.Length}자)", $"Typing ({text.Length} chars)"));
+                    if (await GuardAsync() is JsonObject stopT) return stopT;
                     // 긴 글은 나눠서 넣어 앱이 따라올 수 있게. 이모지 같은 두 칸짜리 글자는 반으로 자르지 않음
                     for (int i = 0; i < text.Length;)
                     {
@@ -188,7 +268,8 @@ public sealed class ScreenTools
                     string keys = Str(a["keys"]) ?? "";
                     var codes = ParseKeys(keys);
                     if (codes == null) return Error($"모르는 키 이름: {keys}. 예: enter, esc, tab, ctrl+c, alt+tab, win+r, f5");
-                    Report($"키 {keys}");
+                    Report(L.T("키 ", "Key ") + keys);
+                    if (await GuardAsync() is JsonObject stopK) return stopK;
                     if (!ScreenInput.Combo(codes)) return Blocked();
                     await Task.Delay(250);
                     return Ok($"pressed {keys}");
@@ -199,11 +280,14 @@ public sealed class ScreenTools
                     double rawAmount = Num(a, "amount");
                     int amount = double.IsNaN(rawAmount) ? 3 : (int)Math.Clamp(rawAmount, 1, 15);   // 없거나 숫자가 아니면 3칸
                     bool up = Str(a["direction"]) == "up";
-                    Report($"스크롤 {(up ? "위" : "아래")} {amount}칸");
+                    Report(L.T($"스크롤 {(up ? "위" : "아래")} {amount}칸", $"Scroll {(up ? "up" : "down")} {amount}"));
+                    if (await GuardAsync(nx, ny) is JsonObject stopS) return stopS;
                     ScreenInput.MouseMove(nx, ny);
+                    _lastSet = (nx, ny);
                     await Task.Delay(40);
                     for (int i = 0; i < amount; i++)
                     {
+                        if (Interrupted()) return !IsAllowed() ? Error("사용자가 멈췄어.") : TookOver();
                         if (!ScreenInput.MouseWheel(up ? 120 : -120)) return Blocked();
                         await Task.Delay(30);
                     }
@@ -214,7 +298,7 @@ public sealed class ScreenTools
                 {
                     double raw = Num(a, "seconds");
                     double s = double.IsNaN(raw) ? 1 : Math.Clamp(raw, 0.5, 10);
-                    Report($"기다리는 중 {s:0.#}초");
+                    Report(L.T($"기다리는 중 {s:0.#}초", $"Waiting {s:0.#}s"));
                     // 0.1초마다 멈춤 여부 확인 (긴급 정지가 바로 먹히게)
                     for (double t = 0; t < s; t += 0.1)
                     {

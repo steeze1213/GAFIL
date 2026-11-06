@@ -41,7 +41,7 @@
             <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.3"/>
         </Border.Effect>
         <StackPanel>
-            <TextBlock Text="GAFIL이 허락을 구해요" FontWeight="Bold" FontSize="15" Foreground="#D9653B"/>
+            <TextBlock x:Name="TitleText" Text="GAFIL이 허락을 구해요" FontWeight="Bold" FontSize="15" Foreground="#D9653B"/>
             <TextBlock x:Name="SummaryText" Margin="0,6,0,0" TextWrapping="Wrap" FontSize="13" Foreground="#3A2218"/>
 
             <!-- 실행할 명령 또는 쓸 내용 (그대로 보여줌) -->

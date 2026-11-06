@@ -86,6 +86,8 @@
 
                     <!-- 입력창: 둥근 상자 + 비었을 때 안내 문구 -->
                     <StackPanel DockPanel.Dock="Bottom" Margin="0,8,4,0">
+                        <!-- 끌어다 놓은 파일·글 (📎 칩) -->
+                        <WrapPanel x:Name="AttachPanel" Visibility="Collapsed" Margin="0,0,0,2"/>
                         <Border Background="White" CornerRadius="6"
                                 BorderBrush="#E3D2C5" BorderThickness="1.5" Padding="8,6">
                             <Grid>
@@ -98,7 +100,7 @@
                                          TextWrapping="Wrap" MaxHeight="80" VerticalScrollBarVisibility="Auto"/>
                             </Grid>
                         </Border>
-                        <TextBlock Margin="2,5,0,0" FontSize="10.5" Foreground="#B9A797"
+                        <TextBlock x:Name="HintText" Margin="2,5,0,0" FontSize="10.5" Foreground="#B9A797"
                                    Text="Enter 보내기 · Shift+Enter 줄바꿈 · Esc 닫기"/>
                     </StackPanel>
 

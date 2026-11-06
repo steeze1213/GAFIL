@@ -12,6 +12,8 @@ public sealed class ScreenControlOverlay : Window
 {
     private readonly TextBlock _label;
     private string _stopHint = "";
+    private readonly Canvas _markerLayer = new();      // 클릭 예고 표시를 올리는 층
+    private readonly FrameworkElement _marker;
 
     public ScreenControlOverlay()
     {
@@ -40,10 +42,27 @@ public sealed class ScreenControlOverlay : Window
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 900,
         };
+        // 클릭 예고 표시: 노란 고리 + 가운데 점 (GAFIL이 곧 누를 자리)
+        var yellow = new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x2E));
+        yellow.Freeze();
+        _marker = new Grid
+        {
+            Width = 44,
+            Height = 44,
+            Visibility = Visibility.Collapsed,
+            Children =
+            {
+                new System.Windows.Shapes.Ellipse { Stroke = yellow, StrokeThickness = 4 },
+                new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = yellow },
+            },
+        };
+        _markerLayer.Children.Add(_marker);
+
         Content = new Grid
         {
             Children =
             {
+                _markerLayer,
                 new Border { BorderBrush = red, BorderThickness = new Thickness(5) },
                 new Border
                 {
@@ -58,6 +77,16 @@ public sealed class ScreenControlOverlay : Window
         };
     }
 
+    // 클릭 예고 표시 보이기/숨기기. nx, ny: 주 모니터 기준 0~1 (오버레이가 주 모니터 전체를 덮으므로 비율 그대로)
+    public void ShowMarker(double nx, double ny)
+    {
+        Canvas.SetLeft(_marker, nx * ActualWidth - _marker.Width / 2);
+        Canvas.SetTop(_marker, ny * ActualHeight - _marker.Height / 2);
+        _marker.Visibility = Visibility.Visible;
+    }
+
+    public void HideMarker() => _marker.Visibility = Visibility.Collapsed;
+
     public void SetStopHint(string hint)
     {
         _stopHint = hint;
@@ -66,7 +95,8 @@ public sealed class ScreenControlOverlay : Window
 
     // 안내 띠에 지금 하는 동작을 보여줌 (예: "클릭 (640, 400)")
     public void SetAction(string action) =>
-        _label.Text = $"🐾 GAFIL이 화면 조작 중{(action != null ? " · " + action : "")} — 멈추기: {_stopHint}";
+        _label.Text = L.T("🐾 GAFIL이 화면 조작 중", "🐾 GAFIL is controlling the screen") + (action != null ? " · " + action : "") +
+            L.T(" — 멈추기: ", " — stop: ") + _stopHint;
 
     protected override void OnSourceInitialized(EventArgs e)
     {

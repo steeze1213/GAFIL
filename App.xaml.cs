@@ -35,7 +35,8 @@ public partial class App : Application
         catch (Exception ex)
         {
             AppSettings.Log($"[치명적 오류] 시작 실패: {ex}");
-            MessageBox.Show($"GAFIL을 시작하지 못했어요.\n{ex.Message}\n\n자세한 내용: %LOCALAPPDATA%\\ClaudeDesk\\logs\\commands.log",
+            MessageBox.Show(L.T("GAFIL을 시작하지 못했어요.", "GAFIL could not start.") + $"\n{ex.Message}\n\n" +
+                L.T("자세한 내용", "Details") + ": %LOCALAPPDATA%\\ClaudeDesk\\logs\\commands.log",
                 "GAFIL", MessageBoxButton.OK, MessageBoxImage.Error);
             _single.Dispose();
             _single = null;

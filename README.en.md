@@ -282,6 +282,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.3.1** — More natural meow (a short, chirpy "nyang")
 - **v1.3.0** — Screen control works on every monitor (picks a monitor, red border on each), the cat hops on top of an auto-hiding taskbar or dock when it pops up, occasional meows
 - **v1.2.1** — 🎤 Talk to it (`Ctrl+Alt+Space`, Windows voice typing, auto-send), English README, better display-language detection
 - **v1.1.0** — Summon hotkey, pick up by the scruff & multiple monitors, drop files/text, saved history, reminders, moods (panting, sweating, napping), fur colors & outfits, English UI, update notice, click preview + stop when you move the mouse

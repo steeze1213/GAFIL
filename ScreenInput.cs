@@ -1,5 +1,5 @@
 // 5단계 GAFIL 화면 조작: 화면 캡처(JPEG)와 마우스·키보드 입력 넣기(SendInput)
-// 주 모니터만 다룸. 좌표는 0~1로 정규화(normalize)해서 주고받음 → 해상도·배율과 무관
+// v1.3: 여러 모니터 지원 — 모니터 목록, 모니터별 캡처, 모든 모니터를 합친 '가상 화면' 기준 마우스 이동(실제 픽셀)
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -8,8 +8,69 @@ using System.Runtime.InteropServices;
 
 namespace ClaudeDesk;
 
+// 모니터 하나 (실제 픽셀). Index는 1부터, 1 = 주 모니터
+public sealed record MonitorRect(int Index, int Left, int Top, int Width, int Height, bool Primary)
+{
+    public bool Contains(int x, int y) => x >= Left && x < Left + Width && y >= Top && y < Top + Height;
+}
+
 public static class ScreenInput
 {
+    // ---------------- 모니터 ----------------
+
+    // 연결된 모니터 목록: 주 모니터가 1번, 나머지는 왼쪽→오른쪽, 위→아래 순
+    public static List<MonitorRect> Monitors()
+    {
+        IntPtr prev = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        try
+        {
+            var raw = new List<(RECT R, bool Primary)>();
+            EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr h, IntPtr hdc, ref RECT rc, IntPtr data) =>
+            {
+                var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+                if (GetMonitorInfo(h, ref mi)) raw.Add((mi.rcMonitor, (mi.dwFlags & 1) != 0));
+                return true;
+            }, IntPtr.Zero);
+            var ordered = raw.OrderByDescending(m => m.Primary).ThenBy(m => m.R.Left).ThenBy(m => m.R.Top).ToList();
+            return ordered.Select((m, i) => new MonitorRect(i + 1, m.R.Left, m.R.Top, m.R.Right - m.R.Left, m.R.Bottom - m.R.Top, m.Primary)).ToList();
+        }
+        finally { if (prev != IntPtr.Zero) SetThreadDpiAwarenessContext(prev); }
+    }
+
+    // 모니터 하나를 캡처해서 긴 변 maxEdge 이하로 줄인 JPEG. outW/outH: 이미지 크기 (클릭 좌표의 기준)
+    public static byte[] CaptureJpeg(MonitorRect m, int maxEdge, long quality, out int outW, out int outH)
+    {
+        IntPtr prev = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        try { return CaptureRect(m.Left, m.Top, m.Width, m.Height, maxEdge, quality, out outW, out outH); }
+        finally { if (prev != IntPtr.Zero) SetThreadDpiAwarenessContext(prev); }
+    }
+
+    public static (int W, int H) ShotSize(MonitorRect m, int maxEdge) => Scaled(m.Width, m.Height, maxEdge);
+
+    // 커서 위치 (실제 픽셀, 모든 모니터 공통 좌표). 못 읽으면 Ok=false
+    public static (int X, int Y, bool Ok) CursorPhysical()
+    {
+        IntPtr prev = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        try { return GetCursorPos(out var p) ? (p.X, p.Y, true) : (0, 0, false); }
+        finally { if (prev != IntPtr.Zero) SetThreadDpiAwarenessContext(prev); }
+    }
+
+    // 마우스를 실제 픽셀 (x, y)로: 모든 모니터를 합친 가상 화면 기준 절대 좌표(0~65535)로 바꿔서 보냄
+    public static bool MoveTo(int x, int y)
+    {
+        IntPtr prev = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        try
+        {
+            int vx = GetSystemMetrics(SM_XVIRTUALSCREEN), vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+            int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN), vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+            if (vw <= 1 || vh <= 1) return false;
+            int ax = (int)Math.Round((x - vx) * 65535.0 / (vw - 1));
+            int ay = (int)Math.Round((y - vy) * 65535.0 / (vh - 1));
+            return Send(MouseInput(Math.Clamp(ax, 0, 65535), Math.Clamp(ay, 0, 65535), 0, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK));
+        }
+        finally { if (prev != IntPtr.Zero) SetThreadDpiAwarenessContext(prev); }
+    }
+
     // ---------------- 화면 캡처 ----------------
 
     private static readonly ImageCodecInfo JpegCodec =
@@ -49,16 +110,22 @@ public static class ScreenInput
 
     private static byte[] CaptureJpegCore(int maxWidth, long quality, out int outW, out int outH)
     {
-        outW = outH = 0;
         int w = GetSystemMetrics(SM_CXSCREEN);   // 주 모니터의 실제 픽셀 크기
         int h = GetSystemMetrics(SM_CYSCREEN);
+        return CaptureRect(0, 0, w, h, maxWidth, quality, out outW, out outH);
+    }
+
+    // 화면의 한 영역(실제 픽셀)을 캡처
+    private static byte[] CaptureRect(int left, int top, int w, int h, int maxWidth, long quality, out int outW, out int outH)
+    {
+        outW = outH = 0;
         if (w <= 0 || h <= 0) return null;
 
         using var full = new Bitmap(w, h, PixelFormat.Format24bppRgb);
         using (var g = Graphics.FromImage(full))
         {
-            g.CopyFromScreen(0, 0, 0, 0, new Size(w, h), CopyPixelOperation.SourceCopy);
-            DrawCursor(g);
+            g.CopyFromScreen(left, top, 0, 0, new Size(w, h), CopyPixelOperation.SourceCopy);
+            DrawCursor(g, left, top);
         }
 
         // Claude에게 보내기 좋은 크기로 줄임 (전송량을 줄이고, 좌표를 읽기 쉬운 크기로)
@@ -81,7 +148,7 @@ public static class ScreenInput
     }
 
     // CopyFromScreen은 커서를 찍지 않아서 직접 그림 (GAFIL이 커서 위치를 알 수 있게)
-    private static void DrawCursor(Graphics g)
+    private static void DrawCursor(Graphics g, int originX, int originY)
     {
         var ci = new CURSORINFO { cbSize = Marshal.SizeOf<CURSORINFO>() };
         if (!GetCursorInfo(ref ci) || (ci.flags & CURSOR_SHOWING) == 0) return;
@@ -96,7 +163,7 @@ public static class ScreenInput
         }
 
         IntPtr hdc = g.GetHdc();
-        try { DrawIconEx(hdc, ci.ptScreenPos.X - hotX, ci.ptScreenPos.Y - hotY, ci.hCursor, 0, 0, 0, IntPtr.Zero, DI_NORMAL); }
+        try { DrawIconEx(hdc, ci.ptScreenPos.X - hotX - originX, ci.ptScreenPos.Y - hotY - originY, ci.hCursor, 0, 0, 0, IntPtr.Zero, DI_NORMAL); }
         finally { g.ReleaseHdc(hdc); }
     }
 
@@ -259,9 +326,16 @@ public static class ScreenInput
     private const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
     private const uint MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004,
         MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_RIGHTUP = 0x0010, MOUSEEVENTF_MIDDLEDOWN = 0x0020,
-        MOUSEEVENTF_MIDDLEUP = 0x0040, MOUSEEVENTF_WHEEL = 0x0800, MOUSEEVENTF_ABSOLUTE = 0x8000;
+        MOUSEEVENTF_MIDDLEUP = 0x0040, MOUSEEVENTF_WHEEL = 0x0800, MOUSEEVENTF_VIRTUALDESK = 0x4000, MOUSEEVENTF_ABSOLUTE = 0x8000;
     private const uint KEYEVENTF_EXTENDEDKEY = 0x1, KEYEVENTF_KEYUP = 0x2, KEYEVENTF_UNICODE = 0x4;
-    private const int SM_CXSCREEN = 0, SM_CYSCREEN = 1, SM_SWAPBUTTON = 23;
+    private const int SM_CXSCREEN = 0, SM_CYSCREEN = 1, SM_SWAPBUTTON = 23,
+        SM_XVIRTUALSCREEN = 76, SM_YVIRTUALSCREEN = 77, SM_CXVIRTUALSCREEN = 78, SM_CYVIRTUALSCREEN = 79;
+
+    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
+    private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT rc, IntPtr data);
+    [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc proc, IntPtr data);
+    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
     private const int CURSOR_SHOWING = 0x1, DI_NORMAL = 0x3;
 
     [StructLayout(LayoutKind.Sequential)]

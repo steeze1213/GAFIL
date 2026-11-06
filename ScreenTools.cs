@@ -1,7 +1,8 @@
 // 5단계 GAFIL 화면 조작 도구: Claude CLI에 GAFIL 안에서 도는 MCP 서버(in-process, "sdk" 방식)로 제공
 // CLI가 control_request(mcp_message)로 JSON-RPC 메시지를 보내면 여기서 처리해 결과를 돌려줌
-// 도구: screenshot, click, drag, move, type, key, scroll, wait
-// 좌표는 '마지막 스크린샷 이미지'의 픽셀 기준 → 실제 화면 비율(0~1)로 바꿔서 입력
+// 도구: list_monitors, screenshot, click, drag, move, type, key, scroll, wait
+// 좌표는 '마지막 스크린샷 이미지'의 픽셀 기준 → 그 스크린샷을 찍은 모니터의 실제 픽셀로 바꿔서 입력
+// v1.3: 여러 모니터 지원 — screenshot(monitor=n)으로 원하는 모니터를 보고, 그 모니터에서 클릭·입력
 using System.Text.Json.Nodes;
 
 namespace ClaudeDesk;
@@ -12,7 +13,8 @@ public sealed class ScreenTools
     private const int ShotMaxWidth = 1280;   // Claude가 좌표를 잘 읽는 크기 (2560x1600 화면 → 1280x800)
     private const long ShotQuality = 70;
 
-    // 마지막 스크린샷 크기 (클릭 좌표를 화면 비율로 바꿀 때 사용)
+    // 마지막 스크린샷의 모니터와 이미지 크기 (클릭 좌표를 그 모니터의 실제 픽셀로 바꿀 때 사용)
+    private MonitorRect _mon;
     private int _shotW, _shotH;
 
     // 동작 하나마다 알림 (빨간 띠 안내·로그). 문자열 예: "클릭 (640, 400)"
@@ -23,13 +25,13 @@ public sealed class ScreenTools
 
     // 클릭 예고: 누르기 전에 그 자리에 표시를 띄우고 이만큼(ms) 기다림. 0이면 예고 없음
     public Func<int> PreviewMs { get; set; } = () => 0;
-    public Action<double, double> ShowMarker { get; set; }
+    public Action<int, int> ShowMarker { get; set; }   // 실제 픽셀 (모든 모니터 공통 좌표)
     public Action HideMarker { get; set; }
     // 사용자가 마우스를 직접 움직임 → GAFIL 조작을 멈춤 (ClaudeClient가 긴급 정지와 같게 처리)
     public Action UserTookOver { get; set; }
 
     private const double TakeoverPx = 10;   // 이만큼(실제 픽셀) 넘게 커서가 움직이면 사용자가 잡은 것으로 봄
-    private (double X, double Y)? _lastSet;  // GAFIL이 마지막으로 커서를 놓은 자리 (비율)
+    private (int X, int Y)? _lastSet;  // GAFIL이 마지막으로 커서를 놓은 자리 (실제 픽셀)
 
     // 승인 버튼을 누른 손이 마우스에서 떨어질 시간 (이 동안은 마우스 움직임을 '가로채기'로 보지 않음)
     private static readonly TimeSpan HandOffGrace = TimeSpan.FromSeconds(1.5);
@@ -47,33 +49,33 @@ public sealed class ScreenTools
     // 사용자가 마우스를 움직였는지: GAFIL이 마지막으로 놓은 자리에서 커서가 벗어났으면 true
     private bool UserMovedSinceLastAction()
     {
-        if (InGrace || _lastSet is not (double lx, double ly)) return false;
-        var (cx, cy, w, h) = ScreenInput.CursorNormalized();
-        if (w <= 0) return false;   // 커서를 못 읽음 → 움직임 없음으로 봄
-        return Math.Abs(cx - lx) * w > TakeoverPx || Math.Abs(cy - ly) * h > TakeoverPx;
+        if (InGrace || _lastSet is not (int lx, int ly)) return false;
+        var c = ScreenInput.CursorPhysical();
+        if (!c.Ok) return false;   // 커서를 못 읽음 → 움직임 없음으로 봄
+        return Math.Abs(c.X - lx) > TakeoverPx || Math.Abs(c.Y - ly) > TakeoverPx;
     }
 
     // 긴 동작(끌기·스크롤·더블클릭) 중간에 확인: 멈춤 또는 가로채기
     private bool Interrupted() => !IsAllowed() || UserMovedSinceLastAction();
 
     // 실행 전 확인 + 예고: 문제 없으면 null, 멈춰야 하면 오류 결과
-    private async Task<JsonObject> GuardAsync(double? nx = null, double? ny = null)
+    private async Task<JsonObject> GuardAsync(int? px = null, int? py = null)
     {
         if (UserMovedSinceLastAction()) return TookOver();
         int ms = PreviewMs();
-        if (nx is not double x || ny is not double y || ms <= 0) return null;
+        if (px is not int x || py is not int y || ms <= 0) return null;
 
         ShowMarker?.Invoke(x, y);
         try
         {
-            var start = ScreenInput.CursorNormalized();
+            var start = ScreenInput.CursorPhysical();
             for (int t = 0; t < ms; t += 50)
             {
                 await Task.Delay(50);
                 if (!IsAllowed()) return Error("사용자가 멈췄어.");
-                var now = ScreenInput.CursorNormalized();
-                if (InGrace) { start = now; continue; }   // 승인 직후엔 손이 떨어지는 움직임을 무시하고 기준점만 갱신
-                if (now.W > 0 && (Math.Abs(now.X - start.X) * now.W > TakeoverPx || Math.Abs(now.Y - start.Y) * now.H > TakeoverPx))
+                var now = ScreenInput.CursorPhysical();
+                if (InGrace || !start.Ok) { start = now; continue; }   // 승인 직후엔 손이 떨어지는 움직임을 무시하고 기준점만 갱신
+                if (now.Ok && (Math.Abs(now.X - start.X) > TakeoverPx || Math.Abs(now.Y - start.Y) > TakeoverPx))
                     return TookOver();
             }
         }
@@ -127,8 +129,10 @@ public sealed class ScreenTools
         };
 
         return new JsonArray(
-            Tool("screenshot", "Capture the user's primary monitor. Returns a JPEG image. All x/y coordinates for other tools are pixels in THIS image (origin top-left). Take a new screenshot after actions to verify the result.",
+            Tool("list_monitors", "List the user's monitors (number, size, position, which is primary, which has the mouse cursor). Use it when a window may be on another monitor.",
                 new JsonObject()),
+            Tool("screenshot", "Capture one monitor as a JPEG. monitor: number from list_monitors (default: the monitor of the previous screenshot, initially the primary). All x/y coordinates for click/move/drag/scroll are pixels in the LATEST screenshot and act on that same monitor. Take a new screenshot after actions to verify the result.",
+                new JsonObject { ["monitor"] = new JsonObject { ["type"] = "integer", ["description"] = "1 = primary" } }),
             Tool("click", "Click at (x, y) in screenshot pixels.",
                 new JsonObject
                 {
@@ -167,31 +171,57 @@ public sealed class ScreenTools
         {
             switch (name)
             {
+                case "list_monitors":
+                {
+                    var mons = ScreenInput.Monitors();
+                    var c = ScreenInput.CursorPhysical();
+                    var sb = new System.Text.StringBuilder();
+                    foreach (var m in mons)
+                    {
+                        sb.Append($"monitor {m.Index}: {m.Width}x{m.Height} px at ({m.Left},{m.Top})");
+                        if (m.Primary) sb.Append(" [primary]");
+                        if (c.Ok && m.Contains(c.X, c.Y)) sb.Append(" [mouse cursor here]");
+                        sb.Append('\n');
+                    }
+                    return Ok(sb.ToString().TrimEnd());
+                }
                 case "screenshot":
                 {
+                    var mons = ScreenInput.Monitors();
+                    MonitorRect target;
+                    double req = Num(a, "monitor");
+                    if (!double.IsNaN(req))
+                    {
+                        target = mons.FirstOrDefault(m => m.Index == (int)req);
+                        if (target == null) return Error($"그런 모니터가 없어: {req}. 모니터는 1~{mons.Count}번이야 (list_monitors 참고).");
+                    }
+                    else target = mons.FirstOrDefault(m => _mon != null && m.Left == _mon.Left && m.Top == _mon.Top) ?? mons.First();
+
                     int sw = 0, sh = 0;
-                    byte[] jpg = await Task.Run(() => ScreenInput.CaptureJpeg(ShotMaxWidth, ShotQuality, out sw, out sh));
+                    byte[] jpg = await Task.Run(() => ScreenInput.CaptureJpeg(target, ShotMaxWidth, ShotQuality, out sw, out sh));
                     if (jpg == null) return Error("화면을 캡처하지 못했어 (잠금 화면이나 관리자 권한 창일 수 있음).");
                     // 캡처하는 사이에 사용자가 멈췄으면 화면을 보내지 않음
                     if (!IsAllowed()) return Error("사용자가 멈췄어.");
-                    (_shotW, _shotH) = (sw, sh);
-                    Report(L.T("화면 보기", "Looking at the screen"));
+                    (_mon, _shotW, _shotH) = (target, sw, sh);
+                    Report(L.T("화면 보기", "Looking at the screen") + (mons.Count > 1 ? L.T($" · 모니터 {target.Index}", $" · monitor {target.Index}") : ""));
+                    string about = $"screenshot of monitor {target.Index}{(target.Primary ? " (primary)" : "")} of {mons.Count}: {_shotW}x{_shotH} px. " +
+                                   "click/move/drag/scroll coordinates are pixels in this image and act on this monitor.";
                     return new JsonObject
                     {
                         ["content"] = new JsonArray(
                             new JsonObject { ["type"] = "image", ["data"] = Convert.ToBase64String(jpg), ["mimeType"] = "image/jpeg" },
-                            new JsonObject { ["type"] = "text", ["text"] = $"screenshot {_shotW}x{_shotH} px (primary monitor). Use these pixel coordinates." }),
+                            new JsonObject { ["type"] = "text", ["text"] = about }),
                     };
                 }
                 case "click":
                 {
-                    var (nx, ny) = Norm(a, "x", "y");
+                    var (nx, ny) = ToPhysical(a, "x", "y");
                     string button = Str(a["button"]) ?? "left";
                     int b = button == "right" ? 2 : button == "middle" ? 1 : 0;
                     bool dbl = a["double"]?.GetValueKind() == System.Text.Json.JsonValueKind.True;
                     Report($"{(dbl ? L.T("더블클릭", "Double-click") : button == "right" ? L.T("오른쪽 클릭", "Right-click") : L.T("클릭", "Click"))} ({Num(a, "x"):0}, {Num(a, "y"):0})");
                     if (await GuardAsync(nx, ny) is JsonObject stopC) return stopC;
-                    bool sent = ScreenInput.MouseMove(nx, ny);
+                    bool sent = ScreenInput.MoveTo(nx, ny);
                     _lastSet = (nx, ny);
                     await Task.Delay(40);
                     for (int i = 0; i < (dbl ? 2 : 1); i++)
@@ -208,21 +238,21 @@ public sealed class ScreenTools
                 }
                 case "move":
                 {
-                    var (nx, ny) = Norm(a, "x", "y");
+                    var (nx, ny) = ToPhysical(a, "x", "y");
                     Report(L.T("마우스 이동", "Move mouse") + $" ({Num(a, "x"):0}, {Num(a, "y"):0})");
                     if (await GuardAsync() is JsonObject stopM) return stopM;
-                    if (!ScreenInput.MouseMove(nx, ny)) return Blocked();
+                    if (!ScreenInput.MoveTo(nx, ny)) return Blocked();
                     _lastSet = (nx, ny);
                     await Task.Delay(200);
                     return Ok("moved");
                 }
                 case "drag":
                 {
-                    var (x1, y1) = Norm(a, "x1", "y1");
-                    var (x2, y2) = Norm(a, "x2", "y2");
+                    var (x1, y1) = ToPhysical(a, "x1", "y1");
+                    var (x2, y2) = ToPhysical(a, "x2", "y2");
                     Report(L.T("끌기", "Drag") + $" ({Num(a, "x1"):0}, {Num(a, "y1"):0}) → ({Num(a, "x2"):0}, {Num(a, "y2"):0})");
                     if (await GuardAsync(x1, y1) is JsonObject stopD) return stopD;
-                    ScreenInput.MouseMove(x1, y1);
+                    ScreenInput.MoveTo(x1, y1);
                     await Task.Delay(50);
                     ScreenInput.MouseButton(0, true);
                     try
@@ -232,8 +262,8 @@ public sealed class ScreenTools
                         for (int i = 1; i <= 15; i++)
                         {
                             if (Interrupted()) break;   // 멈춤·가로채기: 바로 그만두고 아래 finally에서 버튼을 뗌
-                            double px = x1 + (x2 - x1) * i / 15, py = y1 + (y2 - y1) * i / 15;
-                            ScreenInput.MouseMove(px, py);
+                            int px = x1 + (x2 - x1) * i / 15, py = y1 + (y2 - y1) * i / 15;
+                            ScreenInput.MoveTo(px, py);
                             _lastSet = (px, py);
                             await Task.Delay(15);
                         }
@@ -276,13 +306,13 @@ public sealed class ScreenTools
                 }
                 case "scroll":
                 {
-                    var (nx, ny) = Norm(a, "x", "y");
+                    var (nx, ny) = ToPhysical(a, "x", "y");
                     double rawAmount = Num(a, "amount");
                     int amount = double.IsNaN(rawAmount) ? 3 : (int)Math.Clamp(rawAmount, 1, 15);   // 없거나 숫자가 아니면 3칸
                     bool up = Str(a["direction"]) == "up";
                     Report(L.T($"스크롤 {(up ? "위" : "아래")} {amount}칸", $"Scroll {(up ? "up" : "down")} {amount}"));
                     if (await GuardAsync(nx, ny) is JsonObject stopS) return stopS;
-                    ScreenInput.MouseMove(nx, ny);
+                    ScreenInput.MoveTo(nx, ny);
                     _lastSet = (nx, ny);
                     await Task.Delay(40);
                     for (int i = 0; i < amount; i++)
@@ -326,13 +356,20 @@ public sealed class ScreenTools
         OnAction?.Invoke(action);
     }
 
-    // 스크린샷 픽셀 좌표 → 화면 비율(0~1). 스크린샷을 아직 안 찍었으면 같은 규칙으로 크기를 계산
-    private (double, double) Norm(JsonObject a, string xKey, string yKey)
+    // 스크린샷 픽셀 좌표 → 그 스크린샷을 찍은 모니터의 실제 픽셀 (모든 모니터 공통 좌표)
+    // 스크린샷을 아직 안 찍었으면 주 모니터 기준으로 같은 규칙의 크기를 씀
+    private (int, int) ToPhysical(JsonObject a, string xKey, string yKey)
     {
-        if (_shotW <= 0 || _shotH <= 0) (_shotW, _shotH) = ScreenInput.ShotSize(ShotMaxWidth);
+        if (_mon == null || _shotW <= 0 || _shotH <= 0)
+        {
+            _mon = ScreenInput.Monitors().First();
+            (_shotW, _shotH) = ScreenInput.ShotSize(_mon, ShotMaxWidth);
+        }
         double x = Num(a, xKey), y = Num(a, yKey);
         if (double.IsNaN(x) || double.IsNaN(y)) throw new ArgumentException($"{xKey}/{yKey} 좌표가 필요해");
-        return (Math.Clamp((x + 0.5) / _shotW, 0, 1), Math.Clamp((y + 0.5) / _shotH, 0, 1));
+        int px = _mon.Left + (int)Math.Round((Math.Clamp(x, 0, _shotW - 1) + 0.5) * _mon.Width / _shotW);
+        int py = _mon.Top + (int)Math.Round((Math.Clamp(y, 0, _shotH - 1) + 0.5) * _mon.Height / _shotH);
+        return (Math.Clamp(px, _mon.Left, _mon.Left + _mon.Width - 1), Math.Clamp(py, _mon.Top, _mon.Top + _mon.Height - 1));
     }
 
     // "ctrl+shift+t" → 브라우저 키 코드 목록 (ScreenInput의 키 표와 같은 이름)

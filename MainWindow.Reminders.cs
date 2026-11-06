@@ -81,7 +81,9 @@ public partial class MainWindow
         // 화면에 보여준 다음에야 파일에서 지움 (그 전에 꺼지면 다음에 켤 때 '놓친 알림'으로 다시 알려줌)
         _reminders.Remove(_pendingAnnounce.Select(r => r.Id));
         _pendingAnnounce.Clear();
-        try { SystemSounds.Asterisk.Play(); } catch { }
+        // 알림은 야옹 두 번 (야옹을 꺼 두었으면 원래의 Windows 알림음)
+        if (!CatMeow.TryMeow(_settings.Meow, force: true, times: 2))
+            try { SystemSounds.Asterisk.Play(); } catch { }
         SaveHistory();
     }
 }

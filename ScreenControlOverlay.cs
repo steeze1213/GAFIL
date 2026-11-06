@@ -1,5 +1,6 @@
 // 5단계: GAFIL이 화면을 조작하는 동안 보이는 빨간 테두리 + 위쪽 안내 띠 (지금 하는 동작, 멈추는 법)
 // 클릭은 아래 창으로 그대로 통과하고, GAFIL이 찍는 스크린샷에는 나오지 않음
+// v1.3: 모니터마다 하나씩 띄움 (생성할 때 어느 모니터인지 받음)
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,9 +15,11 @@ public sealed class ScreenControlOverlay : Window
     private string _stopHint = "";
     private readonly Canvas _markerLayer = new();      // 클릭 예고 표시를 올리는 층
     private readonly FrameworkElement _marker;
+    public MonitorRect Monitor { get; }
 
-    public ScreenControlOverlay()
+    public ScreenControlOverlay(MonitorRect monitor)
     {
+        Monitor = monitor;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -25,11 +28,15 @@ public sealed class ScreenControlOverlay : Window
         ShowActivated = false;   // 나타날 때 포커스를 뺏지 않음 (GAFIL이 조작 중인 창의 포커스를 유지)
         ResizeMode = ResizeMode.NoResize;
 
-        // 주 모니터 전체 (GAFIL이 보고 조작하는 영역과 같음)
-        Left = 0;
-        Top = 0;
-        Width = SystemParameters.PrimaryScreenWidth;
-        Height = SystemParameters.PrimaryScreenHeight;
+        // 처음 위치는 대략만 (창이 만들어진 뒤 실제 픽셀로 정확히 맞춤: FitToMonitor)
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = monitor.Left;
+        Top = monitor.Top;
+        Width = 200;
+        Height = 200;
+        // 배율이 다른 모니터로 옮겨지면 WPF가 크기를 바꾸므로 다시 맞춤
+        DpiChanged += (_, _) => FitToMonitor();
+        Loaded += (_, _) => FitToMonitor();
 
         var red = new SolidColorBrush(Color.FromRgb(0xE0, 0x30, 0x20));
         red.Freeze();
@@ -77,9 +84,10 @@ public sealed class ScreenControlOverlay : Window
         };
     }
 
-    // 클릭 예고 표시 보이기/숨기기. nx, ny: 주 모니터 기준 0~1 (오버레이가 주 모니터 전체를 덮으므로 비율 그대로)
-    public void ShowMarker(double nx, double ny)
+    // 클릭 예고 표시 보이기/숨기기. x, y: 실제 픽셀 (모든 모니터 공통 좌표) → 이 모니터 안의 비율로 바꿔서 그림
+    public void ShowMarker(int x, int y)
     {
+        double nx = (x - Monitor.Left + 0.5) / Monitor.Width, ny = (y - Monitor.Top + 0.5) / Monitor.Height;
         Canvas.SetLeft(_marker, nx * ActualWidth - _marker.Width / 2);
         Canvas.SetTop(_marker, ny * ActualHeight - _marker.Height / 2);
         _marker.Visibility = Visibility.Visible;
@@ -108,27 +116,25 @@ public sealed class ScreenControlOverlay : Window
         // 스크린샷에서 제외: GAFIL이 자기 테두리를 보고 헷갈리지 않게 (Windows 10 2004 이상)
         ExcludeFromCapture(hwnd);
 
-        // 크기를 주 모니터의 실제 픽셀 영역에 정확히 맞춤 (WPF의 PrimaryScreenWidth는 앱을 켤 때의 배율에 고정됨)
-        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-        IntPtr mon = MonitorFromPoint(new POINT(), MONITOR_DEFAULTTOPRIMARY);
-        if (mon != IntPtr.Zero && GetMonitorInfo(mon, ref mi))
-        {
-            // 실제 픽셀 → 이 창의 지금 배율 기준 DIP (WPF 속성으로 설정해야 레이아웃이 덮어쓰지 않음)
-            var r = mi.rcMonitor;
-            var dpi = VisualTreeHelper.GetDpi(this);
-            Left = r.Left / dpi.DpiScaleX;
-            Top = r.Top / dpi.DpiScaleY;
-            Width = (r.Right - r.Left) / dpi.DpiScaleX;
-            Height = (r.Bottom - r.Top) / dpi.DpiScaleY;
-        }
+        FitToMonitor();
     }
 
-    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
-    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
-    [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
-    private const uint MONITOR_DEFAULTTOPRIMARY = 1;
-    [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
-    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
+    // 창을 맡은 모니터의 실제 픽셀 영역에 정확히 맞춤: 먼저 실제 픽셀로 옮기고(SetWindowPos),
+    // 그 모니터의 배율로 WPF 크기 속성도 맞춤 (WPF 속성까지 맞춰야 레이아웃이 크기를 되돌리지 않음)
+    private void FitToMonitor()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, IntPtr.Zero, Monitor.Left, Monitor.Top, Monitor.Width, Monitor.Height, SWP_NOZORDER | SWP_NOACTIVATE);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        Left = Monitor.Left / dpi.DpiScaleX;
+        Top = Monitor.Top / dpi.DpiScaleY;
+        Width = Monitor.Width / dpi.DpiScaleX;
+        Height = Monitor.Height / dpi.DpiScaleY;
+    }
+
+    private const uint SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 
     // 창을 화면 캡처에서 빼는 공통 함수 (MainWindow에서도 사용)
     public static void ExcludeFromCapture(IntPtr hwnd)

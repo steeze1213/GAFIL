@@ -46,6 +46,9 @@ public sealed class AppSettings
     public string VoiceHotkey { get; set; } = "Ctrl+Alt+Space";
     public int VoiceAutoSendMs { get; set; } = 1800;
 
+    // 가끔 야옹 (알림·닫힌 동안 온 답·내려놓기 때만, 알림 말고는 10분에 한 번까지)
+    public bool Meow { get; set; } = true;
+
     // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
     public bool SaveHistory { get; set; } = true;
 

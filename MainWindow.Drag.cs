@@ -128,6 +128,7 @@ public partial class MainWindow
             _settings.CatScreenY = p.Y;
             try { _settings.Save(); } catch { }
             AppSettings.Log($"[고양이] 옮김 → 화면 좌표 ({p.X}, {p.Y})");
+            CatMeow.TryMeow(_settings.Meow);   // 내려놓으면 가끔 야옹 (10분에 한 번까지)
         };
 
         // 배율이 다른 모니터로 넘어가면 창의 배율이 바뀜 → DIP로 저장한 위치도 같은 실제 픽셀이 되게 다시 계산

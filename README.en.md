@@ -18,7 +18,7 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 | 💬 Chat | Click the cat → ask in the speech bubble → Claude's answer types itself out. Keeps the conversation context |
 | 📈 CPU/GPU | When you're not chatting, shows `CPU 12% · GPU 3% 45°C` above the cat. NVIDIA GPUs also show temperature and VRAM; integrated GPUs show usage |
 | ⚙ Commands & files | "Close my browser", "Tidy up my Downloads folder", … **An approval window before every run** |
-| 🐾 Screen control | Tasks that need the screen, like "Search the weather in my browser". It looks at screenshots and clicks/types. **One approval per task + red border + emergency stop** |
+| 🐾 Screen control | Tasks that need the screen, like "Search the weather in my browser". It looks at screenshots and clicks/types. **Works across multiple monitors**. **One approval per task + red border + emergency stop** |
 | ↗ Hand off to the Claude app | Double-click the bubble header → a new chat in the Claude desktop app, pre-filled with the conversation |
 | 🔁 Starts with Windows | Appears automatically when you sign in (can be turned off in the menu) |
 | ⌨ Summon hotkey | `Ctrl+Alt+G` from anywhere → the bubble opens, ready to type |
@@ -29,6 +29,7 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 | 😺 Moods | Pants when the CPU is busy, sweats when the GPU is hot, and at night it moves slowly and naps with Zz |
 | 🎨 Dress up | Right-click → **Change look**: 5 fur colors, 4 outfits |
 | 💾 History | Conversation and context carry over after a restart |
+| 🐱 Meow | **Now and then** it meows: when a reminder fires, when a reply arrives while the bubble is closed, when you put it down (about once per 10 minutes; can be turned off in the menu) |
 | 🌐 Korean / English | Follows your Windows display language (can be fixed in settings) |
 | ⬆ Update notice | The cat tells you when a new version is out, with a one-click download from the menu |
 
@@ -122,7 +123,7 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 - **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking
 - **Drag**: pick it up by the scruff. It drops to the floor where you release it and stays on that monitor
 - **Drop files/text**: they appear as 📎 chips above the input box → type what to do, or just press `Enter` (summarize)
-- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
+- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
 
 ### The speech bubble
 
@@ -182,6 +183,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
   "ScreenPreviewMs": 800,
   "CheckUpdates": true,
   "SaveHistory": true,
+  "Meow": true,
   "VoiceHotkey": "Ctrl+Alt+Space",
   "VoiceAutoSendMs": 1800
 }
@@ -199,6 +201,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
 | `ScreenPreviewMs` | Click preview time during screen control (ms). `0` = no preview (moving the mouse still stops it) |
 | `CheckUpdates` | Check for new versions (once a day) |
 | `SaveHistory` | Save the conversation. `false` = don't save and delete the existing history |
+| `Meow` | Occasional meows. `false` = quiet (reminders use the Windows notification sound) |
 | `VoiceHotkey` | Hotkey for talking. Empty = off |
 | `VoiceAutoSendMs` | How long to wait after you stop speaking before sending (ms). `0` = no auto-send, press Enter |
 
@@ -229,13 +232,12 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | "Couldn't find the 'claude' command" | Check that Claude Code is installed: `claude --version` in a new terminal. If you just installed it, restart GAFIL |
 | Login / auth error | Run `claude` in a terminal → log in → New conversation in GAFIL |
 | Screen control never starts | Check whether another program uses `Ctrl+Alt+Shift+F12` (GAFIL's log says "단축키 등록 실패" = hotkey registration failed) |
-| Clicks land in the wrong place | Screen control supports the primary monitor only. If you changed display scaling, restart GAFIL |
+| Clicks land in the wrong place | If you rearranged monitors or changed scaling, ask GAFIL to look at the screen again, or restart it |
 | Screen control keeps stopping | Touching the mouse while it works stops it for safety. Take your hand off the mouse while it works |
 | `Ctrl+Alt+G` does nothing | Another program may own it → change `OpenHotkey` |
 | 🎤 doesn't transcribe | Windows Settings → Time & language → **Speech** / **Typing**: make sure voice typing is enabled. Try pressing `Win+H` yourself |
 | Can't click an administrator window | Windows blocks it (UIPI). Please click it yourself |
 | SmartScreen warning | "More info → Run anyway" |
-| The cat is hidden behind the taskbar | Can happen with an auto-hiding taskbar |
 
 ---
 
@@ -248,11 +250,10 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 
 ## Known limitations
 
-- Screen control works on the primary monitor only (the cat itself can live on any monitor).
+- Screen control looks at one monitor at a time (GAFIL switches monitors when it needs to).
 - Screen control takes a few seconds per action. Anything doable with a command is much faster that way.
 - Reminders only fire while GAFIL is running (missed ones are shown when it starts).
 - On integrated GPUs (Intel/AMD) the GPU temperature shows N/A (there's no vendor-neutral way to read it). Usage is shown.
-- If the taskbar is at the top or side, the "floor" may not line up.
 
 ---
 
@@ -261,7 +262,8 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice` |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar) |
+| `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
 | `L.cs` | Korean/English strings |
 | `ClaudeClient.cs` | Runs the Claude Code CLI (stream-json), approvals, logging |
@@ -280,6 +282,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.3.0** — Screen control works on every monitor (picks a monitor, red border on each), the cat hops on top of an auto-hiding taskbar or dock when it pops up, occasional meows
 - **v1.2.1** — 🎤 Talk to it (`Ctrl+Alt+Space`, Windows voice typing, auto-send), English README, better display-language detection
 - **v1.1.0** — Summon hotkey, pick up by the scruff & multiple monitors, drop files/text, saved history, reminders, moods (panting, sweating, napping), fur colors & outfits, English UI, update notice, click preview + stop when you move the mouse
 - **v1.0.0** — First release: chat, CPU/GPU display, commands & files behind approval, screen control, hand-off to the Claude app, start with Windows

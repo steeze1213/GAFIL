@@ -238,6 +238,7 @@ public partial class MainWindow : Window
         InitReminders();
         InitUpdateCheck();
         InitVoice();
+        InitTaskbarFloor();
         SetupMenu();
 
         // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
@@ -261,8 +262,10 @@ public partial class MainWindow : Window
             IntPtr mon = MonitorFromPoint(_monitorPt, MONITOR_DEFAULTTONEAREST);
             if (mon == IntPtr.Zero || !GetMonitorInfo(mon, ref mi)) return SystemParameters.WorkArea;
             var dpi = VisualTreeHelper.GetDpi(this);
+            // 튀어나온 자동 숨김 작업표시줄·독이 있으면 그만큼 바닥을 올림 (MainWindow.Taskbar.cs)
+            double bottom = mi.rcWork.Bottom - _floorInsetPhys;
             return new Rect(mi.rcWork.Left / dpi.DpiScaleX, mi.rcWork.Top / dpi.DpiScaleY,
-                (mi.rcWork.Right - mi.rcWork.Left) / dpi.DpiScaleX, (mi.rcWork.Bottom - mi.rcWork.Top) / dpi.DpiScaleY);
+                (mi.rcWork.Right - mi.rcWork.Left) / dpi.DpiScaleX, Math.Max(1, bottom - mi.rcWork.Top) / dpi.DpiScaleY);
         }
     }
 
@@ -337,7 +340,7 @@ public partial class MainWindow : Window
 
     // ---------------- 5단계: GAFIL 화면 조작 ----------------
 
-    private ScreenControlOverlay _overlay;
+    private readonly List<ScreenControlOverlay> _overlays = new();   // 모니터마다 하나
     private string _hotkeyError;       // 긴급 정지 단축키 등록 실패 이유
     private bool _reopenBubbleAfterScreen;
     private const int HotkeyId = 0x6AF1;
@@ -372,8 +375,10 @@ public partial class MainWindow : Window
                 AppSettings.Log("[화면 조작] 조작 중 GAFIL 창 닫기 요청을 막음");
             }
         };
-        _claude.ScreenAction += a => _overlay?.SetAction(a);
-        _claude.SetMarkerHandlers((x, y) => _overlay?.ShowMarker(x, y), () => _overlay?.HideMarker());
+        _claude.ScreenAction += a => { foreach (var o in _overlays) o.SetAction(a); };
+        _claude.SetMarkerHandlers(
+            (x, y) => { foreach (var o in _overlays) { if (o.Monitor.Contains(x, y)) o.ShowMarker(x, y); else o.HideMarker(); } },
+            () => { foreach (var o in _overlays) o.HideMarker(); });
         _claude.UserTookOverScreen += () => StatusText.Text = L.T("마우스를 움직여서 멈췄어", "Stopped: you moved the mouse");
 
         // 긴급 정지 단축키(Ctrl+Alt+Shift+F12): 창 핸들이 생긴 뒤 등록하고, 창 메시지에서 받음
@@ -400,7 +405,8 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             try { UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId); } catch { }
-            _overlay?.Close();
+            foreach (var o in _overlays) o.Close();
+            _overlays.Clear();
         };
     }
 
@@ -412,9 +418,16 @@ public partial class MainWindow : Window
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         if (on)
         {
-            _overlay ??= new ScreenControlOverlay();
-            _overlay.SetStopHint(StopHint);
-            _overlay.Show();
+            // 모든 모니터에 빨간 테두리 (GAFIL이 어느 모니터를 조작하든 보이게)
+            foreach (var o in _overlays) o.Close();
+            _overlays.Clear();
+            foreach (var m in ScreenInput.Monitors())
+            {
+                var o = new ScreenControlOverlay(m);
+                o.SetStopHint(StopHint);
+                o.Show();
+                _overlays.Add(o);
+            }
 
             _reopenBubbleAfterScreen = _bubbleOpen;
             if (_bubbleOpen) ToggleBubble();
@@ -428,8 +441,8 @@ public partial class MainWindow : Window
         }
         else
         {
-            _overlay?.Close();
-            _overlay = null;
+            foreach (var o in _overlays) o.Close();
+            _overlays.Clear();
             SetClickThrough(hwnd, false);
             SetCaptureExcluded(hwnd, false);
             if (_reopenBubbleAfterScreen && !_bubbleOpen) ToggleBubble();
@@ -937,7 +950,11 @@ public partial class MainWindow : Window
             UpdateSprite();
             // 말로 한 질문이면 입력창에 포커스를 다시 주지 않음 (Windows 음성 입력이 주변 소리를 계속 받아 적지 않게)
             if (_bubbleOpen && !_keepInputUnfocused) Input.Focus();
-            else { _unread = true; UpdatePill(); }   // 닫혀 있는 동안 답이 오면 고양이 위에 알림
+            if (!_bubbleOpen)
+            {
+                _unread = true; UpdatePill();   // 닫혀 있는 동안 답이 오면 고양이 위에 알림
+                if (answer != null) CatMeow.TryMeow(_settings.Meow);   // 가끔 한 번 야옹 (10분에 한 번까지)
+            }
         }
 
         if (answer != null) _history.Add((false, answer));

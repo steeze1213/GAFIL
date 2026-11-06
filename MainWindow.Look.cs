@@ -131,6 +131,16 @@ public partial class MainWindow
 
         // "CPU/GPU 표시" 바로 위에 넣음
         CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), look);
+
+        // 야옹 소리 켜기/끄기
+        var meow = new MenuItem { Header = L.T("야옹 소리 (가끔)", "Meow sounds (rarely)"), IsCheckable = true, IsChecked = _settings.Meow };
+        meow.Click += (_, _) =>
+        {
+            _settings.Meow = meow.IsChecked;
+            try { _settings.Save(); } catch { }
+            if (meow.IsChecked) CatMeow.TryMeow(true, force: true);   // 켜면 한 번 들려줌
+        };
+        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), meow);
     }
 
     private void SaveLook()

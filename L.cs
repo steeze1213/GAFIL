@@ -17,7 +17,11 @@ public static class L
         {
             "ko" => false,
             "en" => true,
-            _ => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "ko",
+            // 표시 언어 또는 지역 형식 중 하나라도 한국어면 한국어
+            // (일부 환경에서는 표시 언어가 en-US로 잡히기도 해서 형식(날짜·숫자) 쪽도 함께 봄)
+            _ => !(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ko"
+                   || CultureInfo.CurrentCulture.TwoLetterISOLanguageName == "ko"
+                   || CultureInfo.InstalledUICulture.TwoLetterISOLanguageName == "ko"),
         };
     }
 

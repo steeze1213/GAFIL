@@ -42,6 +42,12 @@ public sealed class AppSettings
     // 이미 알려 준 새 버전 (같은 버전은 한 번만 알림)
     public string NotifiedVersion { get; set; }
 
+    // 음성: 말로 하기 단축키(빈 값이면 끔), 말이 멈춘 뒤 자동으로 보내기까지 기다리는 시간(ms, 0이면 자동 보내기 안 함),
+    // 답을 소리로 읽기: "voice"(말로 물어본 것만), "always", "off"
+    public string VoiceHotkey { get; set; } = "Ctrl+Alt+Space";
+    public int VoiceAutoSendMs { get; set; } = 1800;
+    public string SpeakReplies { get; set; } = "voice";
+
     // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
     public bool SaveHistory { get; set; } = true;
 

@@ -69,6 +69,8 @@
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="StopButton" Style="{StaticResource IconButton}" Content="&#xE71A;"
                                     ToolTip="하던 일 멈추기" Visibility="Collapsed" Foreground="{StaticResource ErrorInk}"/>
+                            <Button x:Name="MicButton" Style="{StaticResource IconButton}" Content="&#xE720;"
+                                    ToolTip="말로 하기"/>
                             <Button x:Name="HandoffButton" Style="{StaticResource IconButton}" Content="&#xE8A7;"
                                     ToolTip="Claude 앱에서 이어서 대화하기 (말풍선 머리줄 더블클릭과 같음)"/>
                             <Button x:Name="ExpandButton" Style="{StaticResource IconButton}" Content="&#xE740;"

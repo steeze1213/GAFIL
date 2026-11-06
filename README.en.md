@@ -23,7 +23,6 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 | 🔁 Starts with Windows | Appears automatically when you sign in (can be turned off in the menu) |
 | ⌨ Summon hotkey | `Ctrl+Alt+G` from anywhere → the bubble opens, ready to type |
 | 🎤 Talk to it | 🎤 button or `Ctrl+Alt+Space` → speak; it writes down what you say and sends it when you pause (Windows voice typing) |
-| 🔊 Spoken replies | GAFIL reads its answers aloud in a **cat voice**, and its mouth moves while it talks |
 | 🖐 Pick it up | Drag the cat and it dangles **like a kitten carried by the scruff of its neck**. Drop it on another monitor and it lives there |
 | 📎 Drop files & text | Drag a file or selected text onto the cat and say "summarize this" (only that file becomes readable without approval) |
 | ⏰ Reminders | "Remind me about the meeting in 30 minutes" → when it's time, the cat runs to the middle of the screen to tell you (remembered across restarts) |
@@ -120,10 +119,10 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 
 - **Left-click**: open/close the speech bubble
 - **`Ctrl+Alt+G`** (anywhere): open the bubble and start typing
-- **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking, and reads the answer aloud
+- **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking
 - **Drag**: pick it up by the scruff. It drops to the floor where you release it and stays on that monitor
 - **Drop files/text**: they appear as 📎 chips above the input box → type what to do, or just press `Enter` (summarize)
-- **Right-click**: menu — Talk, New conversation, Read replies aloud (only when I speak / always / off), Change look (fur / outfit), Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
+- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
 
 ### The speech bubble
 
@@ -184,8 +183,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
   "CheckUpdates": true,
   "SaveHistory": true,
   "VoiceHotkey": "Ctrl+Alt+Space",
-  "VoiceAutoSendMs": 1800,
-  "SpeakReplies": "voice"
+  "VoiceAutoSendMs": 1800
 }
 ```
 
@@ -203,7 +201,6 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
 | `SaveHistory` | Save the conversation. `false` = don't save and delete the existing history |
 | `VoiceHotkey` | Hotkey for talking. Empty = off |
 | `VoiceAutoSendMs` | How long to wait after you stop speaking before sending (ms). `0` = no auto-send, press Enter |
-| `SpeakReplies` | Read replies aloud: `"voice"` (only when you spoke), `"always"`, `"off"` |
 
 Settings are read when GAFIL starts. After saving, restart GAFIL (right-click → **Quit GAFIL** → run `%LOCALAPPDATA%\Programs\GAFIL\GAFIL.exe`).
 
@@ -212,7 +209,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 ## Privacy & data
 
 - **Sent to Anthropic**: your questions, file contents GAFIL reads, command output, and **screenshots during screen control** (same as using Claude Code).
-- **Voice input** uses Windows voice typing (`Win+H`). Speech-to-text is handled by Windows (Microsoft); GAFIL only receives the transcribed text. Replies are spoken with the Windows voices on your PC.
+- **Voice input** uses Windows voice typing (`Win+H`). Speech-to-text is handled by Windows (Microsoft); GAFIL only receives the transcribed text.
 - **Stored only on this PC** (`%LOCALAPPDATA%\ClaudeDesk\`):
   - `settings.json` settings
   - `history.json` conversation history (turn off with `SaveHistory: false`, clear with **New conversation**)
@@ -236,7 +233,6 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | Screen control keeps stopping | Touching the mouse while it works stops it for safety. Take your hand off the mouse while it works |
 | `Ctrl+Alt+G` does nothing | Another program may own it → change `OpenHotkey` |
 | 🎤 doesn't transcribe | Windows Settings → Time & language → **Speech** / **Typing**: make sure voice typing is enabled. Try pressing `Win+H` yourself |
-| Replies aren't read aloud | Check menu → Read replies aloud. If it's grayed out, no voices are installed → Windows Settings → Time & language → Speech → add a voice |
 | Can't click an administrator window | Windows blocks it (UIPI). Please click it yourself |
 | SmartScreen warning | "More info → Run anyway" |
 | The cat is hidden behind the taskbar | Can happen with an auto-hiding taskbar |
@@ -266,7 +262,6 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
 | `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice` |
-| `CatVoice.cs` | Cat voice: Windows speech rendered and played back 18% higher |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
 | `L.cs` | Korean/English strings |
 | `ClaudeClient.cs` | Runs the Claude Code CLI (stream-json), approvals, logging |
@@ -285,7 +280,7 @@ Code comments are in Korean.
 
 ## Changelog
 
-- **v1.2.0** — 🎤 Talk to it (`Ctrl+Alt+Space`, Windows voice typing, auto-send), 🔊 spoken replies in a cat voice (with a talking mouth), English README, better display-language detection
+- **v1.2.1** — 🎤 Talk to it (`Ctrl+Alt+Space`, Windows voice typing, auto-send), English README, better display-language detection
 - **v1.1.0** — Summon hotkey, pick up by the scruff & multiple monitors, drop files/text, saved history, reminders, moods (panting, sweating, napping), fur colors & outfits, English UI, update notice, click preview + stop when you move the mouse
 - **v1.0.0** — First release: chat, CPU/GPU display, commands & files behind approval, screen control, hand-off to the Claude app, start with Windows
 

@@ -1,17 +1,14 @@
-// v1.2 기능: 음성으로 말 걸기 + GAFIL이 소리 내어 답하기
-// [말하기] 🎤 버튼 또는 Ctrl+Alt+Space(기본. Ctrl+Alt+V는 Office '선택하여 붙여넣기'와 겹쳐서 피함) → 말풍선 입력창에 포커스 → Windows 음성 입력(Win+H)을 켬
-//          → 말한 글이 입력창에 들어오고, 말이 멈춘 뒤 잠깐(기본 1.8초) 지나면 자동으로 보냄
-//          Windows 음성 입력을 쓰므로 한국어 포함 여러 언어가 따로 설치 없이 됨 (Windows 설정의 음성 입력 사용)
-// [듣기]  답을 고양이 목소리로 읽어 줌. 기본은 "말로 물어본 질문의 답만" 읽기 (메뉴에서 항상/끄기로 바꿀 수 있음)
-//          읽는 동안 고양이 입이 움직임
+// v1.2 기능: 음성으로 말 걸기
+// 🎤 버튼 또는 Ctrl+Alt+Space(기본. Ctrl+Alt+V는 Office '선택하여 붙여넣기'와 겹쳐서 피함) → 말풍선 입력창에 포커스
+// → Windows 음성 입력(Win+H)을 켬 → 말한 글이 입력창에 들어오고, 말이 멈춘 뒤 잠깐(기본 1.8초) 지나면 자동으로 보냄
+// Windows 음성 입력을 쓰므로 한국어 포함 여러 언어가 따로 설치 없이 됨 (Windows 설정의 음성 입력 사용)
+// (답을 소리로 읽는 기능은 Windows 기본 음성이 어색해서 뺐음. 자연스러운 신경망 음성을 쓸 수 있을 때 다시 검토)
 // 코드 검토로 고친 점:
 //  - 우리가 보내는 Win 키·단축키의 Ctrl/Alt 같은 수식키는 '사용자가 고쳐 쓰는 중'으로 보지 않음 (듣기가 바로 꺼지던 문제)
 //  - 단축키를 누른 손가락(Ctrl/Alt)을 뗀 뒤에 Win+H를 보냄 (안 그러면 Ctrl+Alt+Win+H가 돼서 음성 입력이 안 열림)
-//  - 받아 적는 중(조합 중)인 글은 보내지 않음, 보낸 뒤에는 입력창에서 포커스를 빼서 음성 입력이 GAFIL의 목소리를 받아 적지 않게
+//  - 받아 적는 중(조합 중)인 글은 보내지 않음, 보낸 뒤에는 입력창에서 포커스를 빼서 음성 입력이 주변 소리를 더 받아 적지 않게
 //  - 말풍선을 닫거나 Enter로 직접 보내면 듣기도 끝냄
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -20,7 +17,6 @@ namespace ClaudeDesk;
 
 public partial class MainWindow
 {
-    private CatVoice _voice;
     private const int VoiceHotkeyId = 0x6AF3;
     private string _voiceHotkeyLabel;
     private uint _voiceHotkeyVk;
@@ -32,31 +28,9 @@ public partial class MainWindow
     private string _listenLastText = "";
     private DateTime _listenStarted, _listenLastChange;
     private DateTime _ignoreKeysUntil;        // 우리가 Win+H를 보내는 동안의 키 입력은 무시
-    private bool _keepInputUnfocused;         // 말로 한 질문의 답을 기다리는 동안: 입력창에 포커스를 다시 주지 않음 (자기 목소리 받아쓰기 방지)
+    private bool _keepInputUnfocused;         // 말로 한 질문의 답을 기다리는 동안: 입력창에 포커스를 다시 주지 않음 (음성 입력이 계속 받아 적지 않게)
     private readonly DispatcherTimer _listenTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private static readonly TimeSpan ListenGiveUp = TimeSpan.FromSeconds(20);   // 이만큼 아무 말이 없으면 듣기를 그만둠
-
-    // 읽는 중 입 모양
-    private bool _talking;
-    private bool _mouthOpen;
-    private readonly DispatcherTimer _mouthTimer = new() { Interval = TimeSpan.FromMilliseconds(140) };
-
-    // 말하는 모습: 앉은 그림에서 코 아래 입을 벌림 (어두운 입 + 분홍 혀)
-    private static readonly string[] TalkFrame =
-    {
-        "..........K...K.",
-        ".........KPK.KPK",
-        ".........KOOOOOK",
-        ".........KOEOEOK",
-        ".........KLOPOLK",
-        "........KKOKPKK.",
-        ".......KODOOLLK.",
-        "......KODOOLLLK.",
-        ".KK..KOOOOOLLLK.",
-        "KOOK.KOOOOOOOK..",
-        ".KOOKKOOKKOOOK..",
-        "..KKKKKKKKKKKK..",
-    };
 
     // 사용자가 '고쳐 쓰는' 키로 보지 않을 키: 수식키, Win, 입력기(IME)가 처리한 키
     private static readonly HashSet<Key> NonEditingKeys = new()
@@ -67,15 +41,6 @@ public partial class MainWindow
 
     private void InitVoice()
     {
-        _voice = new CatVoice();
-        _voice.SpeakingChanged += on => Dispatcher.BeginInvoke(() =>
-        {
-            _talking = on;
-            if (on) _mouthTimer.Start(); else { _mouthTimer.Stop(); _mouthOpen = false; }
-            UpdateSprite();
-        });
-        _mouthTimer.Tick += (_, _) => { _mouthOpen = !_mouthOpen; UpdateSprite(); };
-
         MicButton.Click += (_, _) => ToggleListening(fromHotkey: false);
         _listenTimer.Tick += (_, _) => OnListenTick();
 
@@ -117,13 +82,8 @@ public partial class MainWindow
         Closed += (_, _) =>
         {
             try { UnregisterHotKey(new WindowInteropHelper(this).Handle, VoiceHotkeyId); } catch { }
-            _voice.Dispose();
         };
-
-        BuildSpeakMenu();
     }
-
-    // ---------------- 말하기 (음성 입력) ----------------
 
     // 🎤 버튼·단축키: 듣는 중이면 멈추고, 아니면 시작 (두 번 눌러 Win+H가 꺼지는 일이 없게 같은 동작으로 맞춤)
     private void ToggleListening(bool fromHotkey)
@@ -135,7 +95,6 @@ public partial class MainWindow
     private void StartListening(bool fromHotkey)
     {
         if (_listening || _claude.ScreenActive || Thinking) return;
-        _voice.Stop();   // GAFIL이 읽는 중이면 멈춤 (자기 목소리를 받아 적지 않게)
         _keepInputUnfocused = false;
         if (!_bubbleOpen) ToggleBubble();
         Activate();
@@ -223,64 +182,14 @@ public partial class MainWindow
         bool wasListening = _listening;
         StopListening(null);
         Input.Clear();
-        _voice.Stop();
 
-        // 말로 했으면 입력창에서 포커스를 빼서 Windows 음성 입력이 더 받아 적지 않게 함
-        // (그대로 두면 GAFIL이 답을 읽는 소리까지 받아 적을 수 있음)
+        // 말로 했으면 입력창에서 포커스를 빼서 Windows 음성 입력이 주변 소리를 더 받아 적지 않게 함
         _keepInputUnfocused = fromVoice || wasListening;
         if (_keepInputUnfocused) Keyboard.ClearFocus();
 
         var (toClaude, toShow) = TakeAttachments(question);
-        if (fromVoice)
-        {
-            // 소리로 읽어 줄 답이므로 짧고 말하기 좋게 부탁함
-            toClaude += L.T("\n\n(음성으로 한 질문이야. 답은 소리로 읽어 줄 거라 2~3문장으로 짧게, 기호·이모지·목록 없이 말하듯 써 줘.)",
-                "\n\n(This was spoken aloud and your answer will be read out loud: keep it to 2–3 short sentences, no symbols, emoji or lists.)");
-            toShow = "🎤 " + toShow;
-        }
-        await AskAsync(toClaude, toShow, fromVoice);
-    }
-
-    // ---------------- 듣기 (답 읽어 주기) ----------------
-
-    // 답이 끝났을 때 설정에 따라 읽어 줌: "voice"(말로 물어본 것만, 기본), "always", "off"
-    private void MaybeSpeak(string answer, bool fromVoice)
-    {
-        string mode = (_settings.SpeakReplies ?? "voice").ToLowerInvariant();
-        bool speak = mode == "always" || (mode == "voice" && fromVoice);
-        if (speak) _voice.Speak(answer);
-    }
-
-    private void BuildSpeakMenu()
-    {
-        var root = new MenuItem { Header = L.T("답을 소리로 읽기", "Read replies aloud") };
-        (string Id, string Ko, string En)[] modes =
-        {
-            ("voice", "말로 물어본 것만 (기본)", "Only when I speak (default)"),
-            ("always", "항상", "Always"),
-            ("off", "끄기", "Off"),
-        };
-        foreach (var m in modes)
-        {
-            var item = new MenuItem { Header = L.T(m.Ko, m.En), IsCheckable = true, Tag = m.Id };
-            item.Click += (_, _) =>
-            {
-                _settings.SpeakReplies = m.Id;
-                try { _settings.Save(); } catch { }
-                if (m.Id == "off") _voice.Stop();
-            };
-            root.Items.Add(item);
-        }
-        if (!_voice.Available)
-        {
-            root.IsEnabled = false;
-            root.Header = L.T("답을 소리로 읽기 (설치된 음성 없음)", "Read replies aloud (no voices installed)");
-        }
-        CatMenu.Opened += (_, _) =>
-        {
-            foreach (MenuItem i in root.Items) i.IsChecked = (string)i.Tag == (_settings.SpeakReplies ?? "voice");
-        };
-        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), root);
+        if (fromVoice) toShow = "🎤 " + toShow;
+        await AskAsync(toClaude, toShow);
     }
 
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);

@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>GAFIL</AssemblyName>
     <!-- 버전: GitHub Releases 태그(v1.1.0)와 맞춤. 업데이트 확인에 사용 -->
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <RootNamespace>ClaudeDesk</RootNamespace>
     <ApplicationIcon>gafil.ico</ApplicationIcon>
     <!-- 모니터별 DPI 인식(Per-Monitor V2): 화면 캡처·마우스 좌표를 실제 픽셀로 일관되게 (app.manifest 설명 참고) -->
@@ -27,8 +27,6 @@
     <PackageReference Include="System.Management" Version="8.0.0" />
     <!-- 5단계: GAFIL 화면 조작 — 화면 캡처와 JPEG 인코딩 (GDI+) -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
-    <!-- v1.2: 답을 소리로 읽기 (Windows 음성, SAPI) -->
-    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

@@ -206,13 +206,13 @@ public partial class MainWindow : Window
         // 고양이 왼쪽 클릭(말풍선 열기/닫기)과 끌기는 MainWindow.Drag.cs의 한 처리기에서 함께 구분함
         CloseButton.Click += (_, _) => { if (_bubbleOpen) ToggleBubble(); };
         ExpandButton.Click += (_, _) => SetExpanded(!_expanded);
-        StopButton.Click += (_, _) => { _claude.StopScreenControl(); _askCts?.Cancel(); _voice?.Stop(); };
+        StopButton.Click += (_, _) => { _claude.StopScreenControl(); _askCts?.Cancel(); };
         HandoffButton.Click += (_, _) => HandOffToDesktop();
 
         // Esc: 말풍선 닫기
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape && _bubbleOpen) { _voice?.Stop(); StopListening(null); ToggleBubble(); e.Handled = true; }
+            if (e.Key == Key.Escape && _bubbleOpen) { StopListening(null); ToggleBubble(); e.Handled = true; }
         };
 
         // 6단계: 말풍선(머리줄·대화 기록) 더블클릭 → Claude 데스크톱 앱에서 이어하기. 입력창은 제외 (단어 선택과 겹침)
@@ -599,7 +599,7 @@ public partial class MainWindow : Window
         if (_dragging)
             frame = HangFrame();   // 목덜미를 잡힌 모습 (정면이라 좌우 반전 없음)
         else if (_bubbleOpen)
-            frame = Thinking && !_gotFirstText ? ThinkFrame : _talking && _mouthOpen ? TalkFrame : SitFrame;
+            frame = Thinking && !_gotFirstText ? ThinkFrame : SitFrame;
         else
             frame = _state switch
             {
@@ -881,7 +881,7 @@ public partial class MainWindow : Window
 
     // 질문 보내기 → "···" 표시 → 답이 오는 대로 말풍선 갱신 → 오류면 오류 표시
     // question: Claude에게 보낼 글, shown: 말풍선에 보여줄 글 (첨부 목록이 짧게 정리된 것)
-    private async Task AskAsync(string question, string shown = null, bool fromVoice = false)
+    private async Task AskAsync(string question, string shown = null)
     {
         _askCts = new CancellationTokenSource();
         _gotFirstText = false;
@@ -935,14 +935,13 @@ public partial class MainWindow : Window
             StopButton.Visibility = Visibility.Collapsed;
             Input.IsReadOnly = false;
             UpdateSprite();
-            // 말로 한 질문이면 입력창에 포커스를 다시 주지 않음 (Windows 음성 입력이 GAFIL의 목소리를 받아 적지 않게)
+            // 말로 한 질문이면 입력창에 포커스를 다시 주지 않음 (Windows 음성 입력이 주변 소리를 계속 받아 적지 않게)
             if (_bubbleOpen && !_keepInputUnfocused) Input.Focus();
             else { _unread = true; UpdatePill(); }   // 닫혀 있는 동안 답이 오면 고양이 위에 알림
         }
 
         if (answer != null) _history.Add((false, answer));
         SaveHistory();
-        if (answer != null) MaybeSpeak(answer, fromVoice);
     }
 
     // 상태 줄에 보여줄 짧은 모델 이름 (예: "claude-opus-4-8[1m]" → "opus 4.8")

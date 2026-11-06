@@ -282,6 +282,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.3.2** — Bigger sleeping "Z" (the small one looked like a capital I)
 - **v1.3.1** — More natural meow (a short, chirpy "nyang")
 - **v1.3.0** — Screen control works on every monitor (picks a monitor, red border on each), the cat hops on top of an auto-hiding taskbar or dock when it pops up, occasional meows
 - **v1.2.1** — 🎤 Talk to it (`Ctrl+Alt+Space`, Windows voice typing, auto-send), English README, better display-language detection

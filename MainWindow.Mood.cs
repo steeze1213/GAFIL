@@ -10,7 +10,14 @@ public partial class MainWindow
     private const double BusyCpu = 85;     // 헥헥거리기 시작하는 CPU 사용률(%)
     private const double HotGpu = 80;      // 땀 흘리기 시작하는 GPU 온도(°C)
 
-    private int _animTick;                 // 혀·Zz 깜빡임용 틱
+    private int _animTick;
+    // 잠잘 때 머리 위 Z (5x5): 윗줄, 대각선 3칸, 아랫줄
+    private static readonly (int X, int Y)[] ZGlyph =
+    {
+        (0, 0), (1, 0), (2, 0), (3, 0), (4, 0),
+        (3, 1), (2, 2), (1, 3),
+        (0, 4), (1, 4), (2, 4), (3, 4), (4, 4),
+    };                 // 혀·Zz 깜빡임용 틱
 
     // 앉아서 헥헥: 혀(P)가 나왔다 들어갔다
     private static readonly string[] PantA =
@@ -107,11 +114,12 @@ public partial class MainWindow
 
         if (ReferenceEquals(frame, LieFrame) && !_bubbleOpen && IsNight)
         {
-            // Zz: 작은 z(3x3)가 번갈아 위아래로 떠오름
+            // Z: 몸통 위 빈칸에 5x5 Z가 한 칸씩 오르내림 (3x3은 대각선이 안 보여서 대문자 I처럼 보였음)
+            // 왼쪽을 볼 때는 그림 전체가 좌우 반전되므로 Z를 미리 뒤집어 둬야 화면에서 바른 Z가 됨
             int up = (_animTick / 40) % 2;
-            foreach (var (x, y) in new[] { (0, 0), (1, 0), (2, 0), (1, 1), (0, 2), (1, 2), (2, 2) })
-                dots.Add((11 + x, y + up, 'Z'));   // 한 칸씩 오르내림
-            if (up == 1) dots.Add((15, 0, 'Z'));
+            bool flipped = _dir < 0 && !_dragging;
+            foreach (var (x, y) in ZGlyph)
+                dots.Add((4 + (flipped ? 4 - x : x), 1 - up + y, 'Z'));
         }
         return dots;
     }

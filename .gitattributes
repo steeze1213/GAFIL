@@ -1,0 +1,9 @@
+# 줄바꿈은 git이 알아서 맞춤
+* text=auto
+
+# install.cmd는 cmd가 한글을 읽도록 CP949 + CRLF로 저장한 파일 → 바이트 그대로 보관 (변환하면 설치가 깨짐)
+install.cmd -text
+
+# 이미지·아이콘은 바이너리
+*.png binary
+*.ico binary

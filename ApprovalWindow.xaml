@@ -1,0 +1,70 @@
+<!-- 4단계 승인 창: GAFIL이 명령 실행·파일 쓰기를 하려 할 때 사용자에게 허락을 구함.
+     기본 포커스는 "거부" → Enter를 실수로 눌러도 실행되지 않음 -->
+<Window x:Class="ClaudeDesk.ApprovalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GAFIL 승인 요청"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        SizeToContent="Height" Width="460"
+        FontFamily="Malgun Gothic, Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="PillButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="#3A2218" BorderThickness="{TemplateBinding BorderThickness}" Padding="18,7">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bg" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="12" Background="#FFFBF5" BorderBrush="#3A2218" BorderThickness="2" CornerRadius="8" Padding="18,14">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.3"/>
+        </Border.Effect>
+        <StackPanel>
+            <TextBlock Text="GAFIL이 허락을 구해요" FontWeight="Bold" FontSize="15" Foreground="#D9653B"/>
+            <TextBlock x:Name="SummaryText" Margin="0,6,0,0" TextWrapping="Wrap" FontSize="13" Foreground="#3A2218"/>
+
+            <!-- 실행할 명령 또는 쓸 내용 (그대로 보여줌) -->
+            <Border Margin="0,10,0,0" Background="#2B1A12" CornerRadius="6" Padding="10,8">
+                <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <TextBox x:Name="DetailText" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                             Foreground="#FBE3D0" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                             TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </Border>
+
+            <!-- 허용 폴더 밖 접근 등 주의 문구 -->
+            <TextBlock x:Name="WarningText" Visibility="Collapsed" Margin="0,8,0,0" TextWrapping="Wrap"
+                       FontSize="12" Foreground="#B33A2A"/>
+
+            <TextBlock x:Name="CountdownText" Margin="0,10,0,0" FontSize="11" Foreground="#9A8274"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button x:Name="DenyButton" Content="거부" IsCancel="True" Style="{StaticResource PillButton}"
+                        Background="#F3E6DC" Foreground="#3A2218" BorderThickness="0" Margin="0,0,8,0"/>
+                <Button x:Name="AllowButton" Content="허용" Style="{StaticResource PillButton}"
+                        Background="#D9653B" Foreground="White" BorderThickness="0"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

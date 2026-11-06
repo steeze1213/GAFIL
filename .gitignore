@@ -1,0 +1,35 @@
+# 빌드 결과물 (소스에서 다시 만들 수 있음. 완성된 exe는 GitHub Releases로 배포)
+bin/
+obj/
+dist/
+*.pdb
+
+# 개인 설계 메모 (공개하지 않음)
+SPEC.md
+
+# 실행 중에 생기는 개인 데이터 (원래 %LOCALAPPDATA%\ClaudeDesk에 생기지만, 혹시 복사돼 들어와도 올라가지 않게)
+settings.json
+persona.txt
+gafil-mcp.json
+logs/
+workspace/
+remote.token
+remote.pfx
+*.log
+
+# 비밀 정보가 들어갈 수 있는 파일
+.env
+.env.*
+*.pfx
+*.key
+*.pem
+
+# 편집기·OS
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini
+.DS_Store

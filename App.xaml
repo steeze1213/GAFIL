@@ -1,0 +1,5 @@
+<!-- 앱 진입점: 창은 App.xaml.cs에서 직접 띄움 (이미 실행 중이면 띄우지 않기 위해) -->
+<Application x:Class="ClaudeDesk.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnMainWindowClose" />

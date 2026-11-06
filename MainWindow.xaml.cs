@@ -1,0 +1,939 @@
+// 바탕화면 고양이 GAFIL: 모니터 아래쪽 모서리 위에서 걷기/앉기/눕기/점프를 반복함
+// 클릭하면 말풍선이 열리고, 입력한 내용을 Claude(ClaudeClient)에게 보내 답을 실시간으로 보여줌
+// 대화하지 않을 때는 고양이 위에 CPU/GPU 사용량을 표시함 (3단계)
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+
+namespace ClaudeDesk;
+
+public partial class MainWindow : Window
+{
+    // ---- 화면 설정 ----
+    private const double Cell = 5;            // 한 칸 크기(픽셀)
+    private const double CatWidth = 80;       // 16칸 x 5px
+    private const double CatHeight = 60;      // 12칸 x 5px
+    private const double IdleWidth = 200;     // 평소 창 폭: 시스템 정보 한 줄이 들어갈 만큼 (빈 곳은 투명이라 클릭이 통과함)
+    private const double PillHeight = 22;     // 시스템 정보 한 줄 높이 (여백 포함)
+    private const double OpenWidth = 340;     // 말풍선이 열렸을 때 창 폭
+    private const double OpenHeight = 480;    // 말풍선이 열렸을 때 창 높이 (보통 크기)
+    private const double ChatMaxNormal = 240; // 보통 크기일 때 대화 기록 최대 높이
+    private const double BubbleChrome = 190;  // 말풍선에서 대화 기록을 뺀 나머지(머리줄·입력창·꼬리·여백) 높이
+
+    // ---- 움직임 설정 ----
+    private const double WalkSpeed = 1.2;     // 걷기 속도 (픽셀/틱)
+    private const double JumpPower = 5.5;     // 점프 초기 속도 (위 방향)
+    private const double Gravity = 0.3;       // 틱마다 위 방향 속도가 줄어드는 양
+
+    // ---- 픽셀 스프라이트. 오른쪽을 보는 모습 ----
+    // K=외곽선, O=몸통 주황, D=줄무늬, L=배·볼 크림색, P=귀 안쪽·코 분홍, E=눈, .=빈칸
+    private static readonly string[] WalkA =
+    {
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        ".K.......KOEOEOK",
+        "KOK......KLOPOLK",
+        "KOK.KKKKKKOOOOK.",
+        ".KOKODOODOOOOK..",
+        "..KODOODOOLLOK..",
+        "..KOOOOOOOLLOK..",
+        "..KOKKKKKKKOKK..",
+        "..KOK.....KOK...",
+        "..KK......KK....",
+    };
+
+    private static readonly string[] WalkB =
+    {
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        ".K.......KOEOEOK",
+        "KOK......KLOPOLK",
+        "KOK.KKKKKKOOOOK.",
+        ".KOKODOODOOOOK..",
+        "..KODOODOOLLOK..",
+        "..KOOOOOOOLLOK..",
+        "...KOKKKKKOKKK..",
+        "...KOK...KOK....",
+        "....KK...KK.....",
+    };
+
+    private static readonly string[] SitFrame =
+    {
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        ".........KOEOEOK",
+        ".........KLOPOLK",
+        "........KKOOOOK.",
+        ".......KODOOLLK.",
+        "......KODOOLLLK.",
+        ".KK..KOOOOOLLLK.",
+        "KOOK.KOOOOOOOK..",
+        ".KOOKKOOKKOOOK..",
+        "..KKKKKKKKKKKK..",
+    };
+
+    // 눈 감은 앉기: 대답을 생각하는 동안 사용
+    private static readonly string[] ThinkFrame =
+    {
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        ".........KOKOKOK",
+        ".........KLOPOLK",
+        "........KKOOOOK.",
+        ".......KODOOLLK.",
+        "......KODOOLLLK.",
+        ".KK..KOOOOOLLLK.",
+        "KOOK.KOOOOOOOK..",
+        ".KOOKKOOKKOOOK..",
+        "..KKKKKKKKKKKK..",
+    };
+
+    private static readonly string[] LieFrame =
+    {
+        "................",
+        "................",
+        "................",
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        "..KKKKKKKKOKOKOK",
+        ".KODOODOOOLOPOLK",
+        "KOODOODOOOOOOOOK",
+        "KOOOOOOOOOOOOOK.",
+        ".KKKKKKKKKKKKK..",
+        "................",
+    };
+
+    private static readonly string[] JumpFrame =
+    {
+        "..........K...K.",
+        ".........KPK.KPK",
+        ".........KOOOOOK",
+        "K........KOEOEOK",
+        "KOK......KLOPOLK",
+        ".KOKKKKKKKOOOOK.",
+        "..KODOODOOOOOK..",
+        "..KODOODOOLLOK..",
+        ".KOOOOOOOOLLOKK.",
+        "KOKKKKKKKKKKKOK.",
+        "KK..........KK..",
+        "................",
+    };
+
+    // 색은 한 번만 만들고 고정(Freeze)해서 재사용
+    private static readonly Dictionary<char, SolidColorBrush> Palette = new()
+    {
+        ['K'] = Brush(0x3A, 0x22, 0x18),
+        ['O'] = Brush(0xE0, 0x7B, 0x4F),
+        ['D'] = Brush(0xB9, 0x5A, 0x36),
+        ['L'] = Brush(0xFB, 0xE3, 0xD0),
+        ['P'] = Brush(0xF3, 0x9C, 0x9C),
+        ['E'] = Brush(0x1A, 0x1A, 0x1A),
+    };
+
+    // 고양이가 할 수 있는 행동
+    private enum CatState { Walk, Sit, Lie, Jump }
+
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
+    private readonly DispatcherTimer _dotsTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly Random _rnd = new();
+    private readonly AppSettings _settings;
+    private readonly ClaudeClient _claude;
+    private readonly SystemStats _stats = new();
+
+    private CatState _state;
+    private int _stateTicks;          // 현재 행동이 끝나기까지 남은 틱 수
+    private int _dir = 1;             // 1 = 오른쪽, -1 = 왼쪽
+    private double _centerX;          // 고양이 중심의 화면 X 좌표
+    private double _jumpY;            // 바닥에서 떠 있는 높이 (0 = 바닥)
+    private double _jumpVy;           // 점프 중 위 방향 속도
+    private int _walkTick;            // 걷기 다리 애니메이션용 틱
+    private bool _legFrameB;          // 걷기 프레임 (false = A, true = B)
+    private bool _bubbleOpen;
+    private bool _expanded;           // 말풍선 크게 보기 (화면 위쪽까지)
+    private bool _menuOpen;           // 오른쪽 클릭 메뉴가 열려 있으면 고양이 멈춤
+    private bool _unread;             // 말풍선을 닫은 사이 답이 도착함
+
+    // 대화 상태
+    private readonly List<(bool IsUser, string Text)> _history = new();   // 6단계 앱 전환용 대화 기록 (메모리에만)
+    private CancellationTokenSource _askCts;   // 진행 중인 질문 (null이면 대기 상태)
+    private TextBlock _answerBlock;            // 지금 답이 채워지고 있는 말풍선 줄
+    private bool _gotFirstText;                // 답변 첫 글자가 왔는지 (오기 전까지 "···" 표시)
+    private int _dots;
+    private StatsSnapshot _lastStats;
+
+    private string[] _drawnFrame;     // 마지막으로 그린 프레임 (같으면 다시 그리지 않음)
+    private bool _drawnFlip;
+
+    private bool Thinking => _askCts != null;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        _settings = AppSettings.Load();
+        _settings.ApplyAutoStart();     // exe 위치가 바뀌었어도 자동 실행 경로를 최신으로 맞춤
+        _claude = new ClaudeClient(_settings) { Approve = ShowApprovalAsync };
+
+        // 칸 사이에 얇은 틈이 생기지 않도록 안티앨리어싱(anti-aliasing)을 끔
+        RenderOptions.SetEdgeMode(Cat, EdgeMode.Aliased);
+
+        AddCatLine("뭐 궁금한 거 있어? 귀찮지만… 물어봐냥.");
+
+        Loaded += (_, _) =>
+        {
+            var wa = WorkArea;   // 작업표시줄을 뺀 실제 사용 영역
+            _centerX = wa.Right - 120;             // 오른쪽 아래에서 시작
+            ChooseNextState();
+            UpdateSprite();
+            UpdatePill();
+            ApplyPosition();
+            _timer.Tick += OnTick;
+            _timer.Start();
+
+            // 측정은 백그라운드 스레드에서 → 화면 갱신은 UI 스레드로 넘김
+            _stats.Updated += s => Dispatcher.BeginInvoke(() => { _lastStats = s; UpdatePill(); });
+            if (_settings.ShowStats) _stats.Start();
+        };
+
+        // 고양이 왼쪽 클릭: 말풍선 토글 (오른쪽 클릭은 메뉴)
+        Cat.MouseLeftButtonUp += (_, _) => ToggleBubble();
+        CloseButton.Click += (_, _) => { if (_bubbleOpen) ToggleBubble(); };
+        ExpandButton.Click += (_, _) => SetExpanded(!_expanded);
+        StopButton.Click += (_, _) => { _claude.StopScreenControl(); _askCts?.Cancel(); };
+        HandoffButton.Click += (_, _) => HandOffToDesktop();
+
+        // Esc: 말풍선 닫기
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && _bubbleOpen) { ToggleBubble(); e.Handled = true; }
+        };
+
+        // 6단계: 말풍선(머리줄·대화 기록) 더블클릭 → Claude 데스크톱 앱에서 이어하기. 입력창은 제외 (단어 선택과 겹침)
+        MouseButtonEventHandler onDouble = (_, e) =>
+        {
+            if (e.ClickCount == 2) { e.Handled = true; HandOffToDesktop(); }
+        };
+        Header.MouseLeftButtonDown += onDouble;
+        ChatScroll.MouseLeftButtonDown += onDouble;
+
+        // 답을 기다리는 동안 "·  ··  ···" 애니메이션
+        _dotsTimer.Tick += (_, _) =>
+        {
+            _dots = _dots % 3 + 1;
+            if (!_gotFirstText && _answerBlock != null) _answerBlock.Text = new string('·', _dots);
+        };
+
+        InitScreenControl();
+        SetupMenu();
+
+        // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
+        // (Closing이 아니라 Closed: 닫기가 취소될 수 있으므로 정말 닫힌 뒤에만 정리)
+        Closed += (_, _) =>
+        {
+            _askCts?.Cancel();
+            _claude.Dispose();
+            _stats.Dispose();
+        };
+    }
+
+    // 주 모니터의 작업 영역(작업표시줄 제외)을 이 창의 지금 배율 기준 DIP로 돌려줌
+    // 이유: 모니터별 DPI 인식(Per-Monitor V2)에서는 SystemParameters.WorkArea가 앱을 켤 때의 배율에 고정돼서,
+    //       실행 중에 배율을 바꾸면 고양이가 화면 밖으로 나갈 수 있음
+    private Rect WorkArea
+    {
+        get
+        {
+            var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>() };
+            IntPtr mon = MonitorFromPoint(new POINT(), MONITOR_DEFAULTTOPRIMARY);
+            if (mon == IntPtr.Zero || !GetMonitorInfo(mon, ref mi)) return SystemParameters.WorkArea;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            return new Rect(mi.rcWork.Left / dpi.DpiScaleX, mi.rcWork.Top / dpi.DpiScaleY,
+                (mi.rcWork.Right - mi.rcWork.Left) / dpi.DpiScaleX, (mi.rcWork.Bottom - mi.rcWork.Top) / dpi.DpiScaleY);
+        }
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct POINT { public int X, Y; }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
+    private const uint MONITOR_DEFAULTTOPRIMARY = 1;
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
+
+    // ---------------- 오른쪽 클릭 메뉴 ----------------
+
+    private void SetupMenu()
+    {
+        CatMenu.Opened += (_, _) =>
+        {
+            _menuOpen = true;
+            MenuStats.IsChecked = _settings.ShowStats;
+            MenuAutoStart.IsChecked = _settings.AutoStart;
+            // 자동 실행은 설치 위치(%LOCALAPPDATA%\Programs\GAFIL)에서 실행 중일 때만 바꿀 수 있음
+            MenuAutoStart.IsEnabled = AppSettings.IsInstalledCopy;
+            MenuAutoStart.Header = AppSettings.IsInstalledCopy ? "Windows 시작 시 자동 실행" : "Windows 시작 시 자동 실행 (설치본에서만)";
+        };
+        CatMenu.Closed += (_, _) => _menuOpen = false;
+
+        MenuTalk.Click += (_, _) => { if (!_bubbleOpen) ToggleBubble(); };
+        MenuNewChat.Click += (_, _) => StartNewChat();
+        MenuStats.Click += (_, _) =>
+        {
+            _settings.ShowStats = MenuStats.IsChecked;
+            _settings.Save();
+            if (_settings.ShowStats) _stats.Start(); else _stats.Stop();
+            UpdatePill();
+            ApplyPosition();
+        };
+        MenuAutoStart.Click += (_, _) =>
+        {
+            _settings.AutoStart = MenuAutoStart.IsChecked;
+            _settings.Save();
+            _settings.ApplyAutoStart();
+        };
+        MenuSettings.Click += (_, _) => OpenInNotepad(AppSettings.FilePath);
+        MenuLog.Click += (_, _) =>
+        {
+            if (!File.Exists(AppSettings.LogPath)) AppSettings.Log("[로그] 로그 파일 생성");
+            OpenInNotepad(AppSettings.LogPath);
+        };
+        MenuExit.Click += (_, _) => { _exitRequested = true; Close(); };
+
+    }
+
+    // ---------------- 5단계: GAFIL 화면 조작 ----------------
+
+    private ScreenControlOverlay _overlay;
+    private string _hotkeyError;       // 긴급 정지 단축키 등록 실패 이유
+    private bool _reopenBubbleAfterScreen;
+    private const int HotkeyId = 0x6AF1;
+
+    // 멈추는 방법 안내 (단축키 등록에 실패하면 화면 조작 자체를 시작하지 않으므로 항상 단축키)
+    private const string StopHint = "Ctrl+Alt+Shift+F12";
+    private IntPtr _prevForeground;    // 말풍선을 열기 전에 쓰던 창 (화면 조작을 시작할 때 포커스를 돌려줌)
+    private bool _exitRequested;       // 메뉴에서 'GAFIL 끄기'를 눌렀는지
+
+    private void InitScreenControl()
+    {
+        // 예전 버전(휴대폰 원격 제어)이 남긴 토큰·인증서 파일은 이제 쓰지 않으므로 지움
+        foreach (string old in new[] { "remote.token", "remote.pfx" })
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(AppSettings.Dir, old);
+                if (File.Exists(path)) { File.Delete(path); AppSettings.Log($"[정리] 예전 원격 제어 파일 삭제: {old}"); }
+            }
+            catch { }
+        }
+
+        _claude.ScreenControlChanged += OnScreenControlChanged;
+        _claude.EmergencyStopAvailable = () => _hotkeyError == null;
+
+        // 화면 조작 중에 GAFIL 창이 닫히지 않게 (조작 중 Alt+F4가 GAFIL에 들어가는 경우 대비). 메뉴의 'GAFIL 끄기'는 허용
+        Closing += (_, e) =>
+        {
+            if (_claude.ScreenActive && !_exitRequested)
+            {
+                e.Cancel = true;
+                AppSettings.Log("[화면 조작] 조작 중 GAFIL 창 닫기 요청을 막음");
+            }
+        };
+        _claude.ScreenAction += a => _overlay?.SetAction(a);
+
+        // 긴급 정지 단축키(Ctrl+Alt+Shift+F12): 창 핸들이 생긴 뒤 등록하고, 창 메시지에서 받음
+        SourceInitialized += (_, _) =>
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (!RegisterHotKey(hwnd, HotkeyId, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_F12))
+            {
+                _hotkeyError = "단축키 등록 실패";
+                AppSettings.Log("[단축키] Ctrl+Alt+Shift+F12 등록 실패 (다른 프로그램이 쓰는 중일 수 있음)");
+            }
+            System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook((IntPtr h, int msg, IntPtr wp, IntPtr lp, ref bool handled) =>
+            {
+                if (msg == WM_HOTKEY && wp.ToInt32() == HotkeyId)
+                {
+                    handled = true;
+                    _claude.StopScreenControl();
+                    StatusText.Text = "멈췄어";
+                }
+                return IntPtr.Zero;
+            });
+        };
+
+        Closed += (_, _) =>
+        {
+            try { UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId); } catch { }
+            _overlay?.Close();
+        };
+    }
+
+    // 화면 조작 시작/끝
+    // 시작: 빨간 테두리, 말풍선 접기, 고양이 창은 클릭 통과 + 스크린샷에서 제외 (GAFIL이 자기 자신을 누르지 않게)
+    // 끝: 모두 되돌리고, 접어 둔 말풍선을 다시 열어 결과를 보여줌
+    private void OnScreenControlChanged(bool on)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (on)
+        {
+            _overlay ??= new ScreenControlOverlay();
+            _overlay.SetStopHint(StopHint);
+            _overlay.Show();
+
+            _reopenBubbleAfterScreen = _bubbleOpen;
+            if (_bubbleOpen) ToggleBubble();
+            SetClickThrough(hwnd, true);
+            SetCaptureExcluded(hwnd, true);
+
+            // 키보드 포커스를 GAFIL에서 사용자가 쓰던 창으로 돌려줌
+            // (안 그러면 GAFIL의 키 입력·글자 입력이 보이지 않는 고양이 창으로 들어감)
+            if (_prevForeground != IntPtr.Zero && _prevForeground != hwnd && IsWindow(_prevForeground))
+                SetForegroundWindow(_prevForeground);
+        }
+        else
+        {
+            _overlay?.Close();
+            _overlay = null;
+            SetClickThrough(hwnd, false);
+            SetCaptureExcluded(hwnd, false);
+            if (_reopenBubbleAfterScreen && !_bubbleOpen) ToggleBubble();
+            _reopenBubbleAfterScreen = false;
+        }
+        UpdatePill();
+    }
+
+    // 클릭 통과 + 포커스 받지 않기를 함께 켜고 끔
+    private static void SetClickThrough(IntPtr hwnd, bool on)
+    {
+        int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+        const int bits = WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
+        SetWindowLong(hwnd, GWL_EXSTYLE, on ? ex | bits : ex & ~bits);
+    }
+
+    private static void SetCaptureExcluded(IntPtr hwnd, bool on)
+    {
+        try { SetWindowDisplayAffinity(hwnd, on ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE); } catch { }
+    }
+
+    private const int WM_HOTKEY = 0x0312;
+    private const int GWL_EXSTYLE = -20, WS_EX_TRANSPARENT = 0x20, WS_EX_NOACTIVATE = 0x08000000;
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindow(IntPtr hwnd);
+    private const uint WDA_NONE = 0, WDA_EXCLUDEFROMCAPTURE = 0x11;
+    private const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_NOREPEAT = 0x4000, VK_F12 = 0x7B;
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hwnd, int id, uint mods, uint vk);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hwnd, int id);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+
+    private static void OpenInNotepad(string path)
+    {
+        try { Process.Start(new ProcessStartInfo("notepad.exe", $"\"{path}\"") { UseShellExecute = false }); }
+        catch (Exception ex) { AppSettings.Log($"[메뉴] 메모장 열기 실패: {ex.Message}"); }
+    }
+
+    // 새 대화: 화면의 대화 기록과 Claude 세션을 모두 비움
+    private void StartNewChat()
+    {
+        _askCts?.Cancel();
+        _claude.Reset();
+        _history.Clear();
+        ChatPanel.Children.Clear();
+        StatusText.Text = "";
+        AddCatLine("새로 시작하자. 뭐 해줄까?");
+        if (!_bubbleOpen) ToggleBubble();
+    }
+
+    // ---------------- 고양이 움직임 ----------------
+
+    // 매 틱: 행동 시간 확인 → 행동 갱신 → 그림 갱신 → 창 위치 갱신
+    private void OnTick(object sender, EventArgs e)
+    {
+        if (_bubbleOpen || _menuOpen) return;     // 말풍선이나 메뉴가 열려 있으면 고양이는 멈춤
+
+        var wa = WorkArea;
+
+        if (_state != CatState.Jump && --_stateTicks <= 0)
+            ChooseNextState();
+
+        switch (_state)
+        {
+            case CatState.Walk: UpdateWalk(wa); break;
+            case CatState.Jump: UpdateJump(); break;
+        }
+
+        UpdateSprite();
+        ApplyPosition();
+    }
+
+    // 다음 행동을 확률로 고름: 걷기 45%, 앉기 20%, 눕기 15%, 점프 20%
+    private void ChooseNextState()
+    {
+        int roll = _rnd.Next(100);
+
+        if (roll < 45)
+        {
+            _state = CatState.Walk;
+            _stateTicks = _rnd.Next(120, 300);     // 약 2~5초
+            _dir = _rnd.Next(2) == 0 ? -1 : 1;
+        }
+        else if (roll < 65)
+        {
+            _state = CatState.Sit;
+            _stateTicks = _rnd.Next(120, 240);     // 약 2~4초
+        }
+        else if (roll < 80)
+        {
+            _state = CatState.Lie;
+            _stateTicks = _rnd.Next(180, 360);     // 약 3~6초
+        }
+        else
+        {
+            StartJump();
+        }
+    }
+
+    private void UpdateWalk(Rect wa)
+    {
+        // 약 0.16초(10틱)마다 다리 프레임을 바꿔서 걷는 모습을 만듦
+        if (++_walkTick % 10 == 0) _legFrameB = !_legFrameB;
+
+        _centerX += _dir * WalkSpeed;
+
+        // 화면 가장자리에 닿으면 방향을 바꿈 (시스템 정보 줄이 보이면 그 폭까지 화면 안에 들어오게)
+        double half = HalfWidth();
+        double min = wa.Left + half;
+        double max = wa.Right - half;
+        if (_centerX <= min || _centerX >= max)
+        {
+            _dir = -_dir;
+            _centerX = Math.Clamp(_centerX, min, max);
+        }
+    }
+
+    // 평소 창의 절반 폭: 시스템 정보 줄이 보이면 그 줄 폭 기준
+    private double HalfWidth() =>
+        (StatsPill.Visibility == Visibility.Visible ? IdleWidth : CatWidth) / 2;
+
+    private void StartJump()
+    {
+        _state = CatState.Jump;
+        _jumpY = 0;
+        _jumpVy = JumpPower;
+    }
+
+    // 점프: 위로 올라갔다가 중력으로 떨어지고, 바닥에 닿으면 다음 행동을 고름
+    private void UpdateJump()
+    {
+        var wa = WorkArea;
+        // 점프하면서 조금 앞으로 나감 (화면 밖으로 나가지 않게 제한)
+        double half = HalfWidth();
+        _centerX = Math.Clamp(_centerX + _dir * 1.8, wa.Left + half, wa.Right - half);
+        _jumpY += _jumpVy;
+        _jumpVy -= Gravity;
+
+        if (_jumpY <= 0)
+        {
+            _jumpY = 0;
+            ChooseNextState();
+        }
+    }
+
+    // 현재 행동에 맞는 프레임 고르기. 말풍선이 열려 있으면 앉아서 듣고, 생각 중이면 눈을 감음
+    private void UpdateSprite()
+    {
+        string[] frame;
+        if (_bubbleOpen)
+            frame = Thinking && !_gotFirstText ? ThinkFrame : SitFrame;
+        else
+            frame = _state switch
+            {
+                CatState.Walk => _legFrameB ? WalkB : WalkA,
+                CatState.Sit => SitFrame,
+                CatState.Lie => LieFrame,
+                _ => JumpFrame,
+            };
+
+        bool flip = _dir < 0;     // 왼쪽을 보고 있으면 좌우 반전
+        if (ReferenceEquals(frame, _drawnFrame) && flip == _drawnFlip) return;
+
+        _drawnFrame = frame;
+        _drawnFlip = flip;
+        DrawFrame(frame, flip);
+    }
+
+    // 프레임 문자열을 칸 단위 사각형으로 그림
+    private void DrawFrame(string[] rows, bool flip)
+    {
+        Cat.Children.Clear();
+
+        for (int y = 0; y < rows.Length; y++)
+        {
+            for (int x = 0; x < rows[y].Length; x++)
+            {
+                char c = rows[y][x];
+                if (!Palette.TryGetValue(c, out var brush)) continue;     // 빈칸('.')은 그리지 않음
+
+                int drawX = flip ? rows[y].Length - 1 - x : x;
+
+                var cell = new Rectangle { Width = Cell, Height = Cell, Fill = brush };
+                Canvas.SetLeft(cell, drawX * Cell);
+                Canvas.SetTop(cell, y * Cell);
+                Cat.Children.Add(cell);
+            }
+        }
+    }
+
+    // 창 크기와 위치 갱신: 창 아래쪽이 항상 작업 영역 바닥(작업표시줄 위)에 붙도록 함
+    private void ApplyPosition()
+    {
+        var wa = WorkArea;
+        double w, h;
+        if (_bubbleOpen)
+        {
+            w = OpenWidth;
+            h = _expanded ? wa.Height : OpenHeight;      // 크게 보기면 화면 위쪽 끝까지
+        }
+        else
+        {
+            bool pill = StatsPill.Visibility == Visibility.Visible;
+            w = pill ? IdleWidth : CatWidth;
+            h = CatHeight + (pill ? PillHeight : 0);
+            // 화면 가장자리에 있다가 시스템 정보 줄이 새로 나타나면 창이 넓어져 화면 밖으로 잘림 → 안쪽으로 당김
+            _centerX = Math.Clamp(_centerX, wa.Left + w / 2, wa.Right - w / 2);
+        }
+
+        Width = w;
+        Height = h;
+        Left = _centerX - w / 2;
+        Top = wa.Bottom - h - _jumpY;      // 점프 중이면 그만큼 위로
+    }
+
+    // ---------------- 말풍선 ----------------
+
+    private void ToggleBubble()
+    {
+        _bubbleOpen = !_bubbleOpen;
+        Bubble.Visibility = _bubbleOpen ? Visibility.Visible : Visibility.Collapsed;
+
+        if (_bubbleOpen)
+        {
+            _unread = false;
+            // 점프 중이었다면 바닥으로 내려놓고 앉힘
+            _jumpY = 0;
+            if (_state == CatState.Jump) _state = CatState.Sit;
+
+            // 창이 커지므로 화면 밖으로 나가지 않도록 중심 위치를 보정
+            var wa = WorkArea;
+            _centerX = Math.Clamp(_centerX, wa.Left + OpenWidth / 2, wa.Right - OpenWidth / 2);
+
+            // 지금 쓰던 창을 기억해 둠 (화면 조작을 시작하면 그 창으로 포커스를 돌려주려고)
+            var fg = GetForegroundWindow();
+            if (fg != new System.Windows.Interop.WindowInteropHelper(this).Handle) _prevForeground = fg;
+            Activate();
+            Input.Focus();
+            ChatScroll.ScrollToEnd();
+        }
+        else
+        {
+            SetExpanded(false, apply: false);   // 다음에 열 때는 보통 크기로
+        }
+
+        UpdateSprite();
+        UpdatePill();
+        ApplyPosition();
+    }
+
+    // 크게 보기: 대화 기록 영역을 화면 위쪽 끝까지 늘림 (말풍선은 아래에 붙어 있으므로 위로 길어짐)
+    private void SetExpanded(bool expanded, bool apply = true)
+    {
+        _expanded = expanded;
+        var wa = WorkArea;
+        // 최대 높이만 올리면 대화가 짧을 때 말풍선이 그대로라서, 크게 보기에서는 높이 자체를 정해 줌
+        double tall = Math.Max(ChatMaxNormal, wa.Height - CatHeight - BubbleChrome);
+        ChatScroll.MaxHeight = expanded ? tall : ChatMaxNormal;
+        ChatScroll.Height = expanded ? tall : double.NaN;   // NaN = 내용에 맞춤
+        ExpandButton.Content = expanded ? "" : "";   // 작게 보기 / 크게 보기 아이콘
+        ExpandButton.ToolTip = expanded ? "작게 보기" : "크게 보기 (위로 길게)";
+        if (apply)
+        {
+            ApplyPosition();
+            ChatScroll.ScrollToEnd();
+        }
+    }
+
+    // 3단계: 대화하지 않을 때만 고양이 위에 CPU/GPU 표시. 닫힌 사이 답이 왔으면 그 알림을 대신 보여줌
+    private void UpdatePill()
+    {
+        bool wasVisible = StatsPill.Visibility == Visibility.Visible;
+
+        if (_bubbleOpen)
+        {
+            StatsPill.Visibility = Visibility.Collapsed;
+        }
+        else if (_claude.ScreenActive)
+        {
+            // 화면 조작 중이면 다른 표시보다 먼저 알림
+            StatsText.Text = "🐾 화면 조작 중";
+            StatsPill.ToolTip = $"GAFIL이 화면을 조작하는 중이에요 · 멈추기: {StopHint}";
+            StatsPill.Visibility = Visibility.Visible;
+        }
+        else if (_unread)
+        {
+            StatsText.Text = Thinking ? "GAFIL 일하는 중…" : "💬 GAFIL이 답했어";
+            StatsPill.ToolTip = "고양이를 클릭해서 확인";
+            StatsPill.Visibility = Visibility.Visible;
+        }
+        else if (_settings.ShowStats && _lastStats != null)
+        {
+            var s = _lastStats;
+            var g = s.Gpu;
+            string temp = g.TempC is double t ? $" {t:0}°C" : "";
+            StatsText.Text = $"CPU {Pct(s.Cpu)} · GPU {Pct(g.Util)}{temp}";
+            string vram = g.VramUsedGB is double used
+                ? (g.VramTotalGB is double total ? $"\nVRAM {used:0.0} / {total:0} GB" : $"\nVRAM {used:0.0} GB 사용")
+                : "\nVRAM N/A";
+            StatsPill.ToolTip = $"{s.GpuName}{vram}\n온도 {(g.TempC is double tt ? $"{tt:0}°C" : "N/A")}";
+            StatsPill.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            StatsPill.Visibility = Visibility.Collapsed;
+        }
+
+        // 표시 여부가 바뀌면 창 크기도 바뀌어야 함
+        if (wasVisible != (StatsPill.Visibility == Visibility.Visible)) ApplyPosition();
+    }
+
+    private static string Pct(double? v) => v is double d ? $"{d:0}%" : "N/A";
+
+    // ---------------- 대화 기록 표시 ----------------
+
+    // 사용자 말: 오른쪽 정렬된 옅은 칩
+    private void AddUserLine(string text)
+    {
+        var chip = new Border
+        {
+            Background = (Brush)FindResource("Chip"),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(9, 5, 9, 6),
+            Margin = new Thickness(40, 8, 0, 4),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = 12.5, Foreground = (Brush)FindResource("Ink") },
+        };
+        ChatPanel.Children.Add(chip);
+        TrimChat();
+    }
+
+    // GAFIL 말: 왼쪽 평문. 답이 스트리밍되는 동안 같은 줄을 계속 고침
+    private TextBlock AddCatLine(string text)
+    {
+        var tb = new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 13,
+            LineHeight = 20,
+            Foreground = (Brush)FindResource("Ink"),
+            Margin = new Thickness(0, 2, 0, 2),
+        };
+        ChatPanel.Children.Add(tb);
+        TrimChat();
+        return tb;
+    }
+
+    // 도구 사용 같은 진행 상황: 작은 회색 글씨
+    private void AddActivityLine(string text)
+    {
+        var tb = new TextBlock
+        {
+            Text = "⚙ " + text,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 11,
+            Foreground = (Brush)FindResource("Muted"),
+            Margin = new Thickness(0, 2, 0, 2),
+        };
+        // 진행 표시는 답변 줄 바로 위에 넣어 순서가 자연스럽게 보이도록 함
+        int at = _answerBlock != null ? ChatPanel.Children.IndexOf(_answerBlock) : -1;
+        if (at >= 0) ChatPanel.Children.Insert(at, tb); else ChatPanel.Children.Add(tb);
+        ChatScroll.ScrollToEnd();
+    }
+
+    // 화면 요소가 너무 많아지지 않게 오래된 줄부터 지움 (Claude 쪽 대화 맥락은 그대로)
+    private void TrimChat()
+    {
+        while (ChatPanel.Children.Count > 300) ChatPanel.Children.RemoveAt(0);
+        ChatScroll.ScrollToEnd();
+    }
+
+    // ---------------- 질문 보내기 ----------------
+
+    // 입력창이 비었을 때만 안내 문구 표시
+    private void Input_TextChanged(object sender, TextChangedEventArgs e) =>
+        Placeholder.Visibility = Input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    // 입력창에서 Enter → 질문 전송. Shift+Enter는 줄바꿈
+    private async void Input_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        e.Handled = true;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            int at = Input.CaretIndex;
+            Input.Text = Input.Text.Insert(at, "\n");
+            Input.CaretIndex = at + 1;
+            return;
+        }
+
+        string question = Input.Text.Trim();
+        if (question.Length == 0 || Thinking) return;   // 답을 기다리는 중에는 새 질문을 받지 않음
+
+        Input.Clear();
+        await AskAsync(question);
+    }
+
+    // 질문 보내기 → "···" 표시 → 답이 오는 대로 말풍선 갱신 → 오류면 오류 표시
+    private async Task AskAsync(string question)
+    {
+        _askCts = new CancellationTokenSource();
+        _gotFirstText = false;
+
+        AddUserLine(question);
+        _history.Add((true, question));
+        var block = AddCatLine("·");   // 이 질문의 답 줄 (콜백은 필드 대신 이 지역 변수를 씀 → 질문이 끝난 뒤 불려도 안전)
+        _answerBlock = block;
+        StatusText.Text = "생각 중…";
+        StopButton.Visibility = Visibility.Visible;
+        Input.IsReadOnly = true;
+        _dotsTimer.Start();
+        UpdateSprite();
+
+        string answer = null;
+        try
+        {
+            answer = await _claude.AskAsync(question,
+                text =>
+                {
+                    if (!_gotFirstText) { _gotFirstText = true; StatusText.Text = "답하는 중…"; UpdateSprite(); }
+                    block.Text = text;
+                    ChatScroll.ScrollToEnd();    // 긴 답은 끝을 따라감
+                },
+                activity =>
+                {
+                    StatusText.Text = "일하는 중…";
+                    AddActivityLine(activity);
+                },
+                _askCts.Token);
+            StatusText.Text = _claude.ModelName != null ? ShortModel(_claude.ModelName) : "";
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_gotFirstText) block.Text = "(멈췄어.)";
+            StatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            block.Foreground = (Brush)FindResource("ErrorInk");
+            block.Text = "앗, 오류가 났어.\n" + ex.Message;
+            StatusText.Text = "";
+        }
+        finally
+        {
+            _dotsTimer.Stop();
+            _askCts.Dispose();
+            _askCts = null;
+            _gotFirstText = false;
+            _answerBlock = null;
+            StopButton.Visibility = Visibility.Collapsed;
+            Input.IsReadOnly = false;
+            UpdateSprite();
+            if (_bubbleOpen) Input.Focus();
+            else { _unread = true; UpdatePill(); }   // 닫혀 있는 동안 답이 오면 고양이 위에 알림
+        }
+
+        if (answer != null) _history.Add((false, answer));
+    }
+
+    // 상태 줄에 보여줄 짧은 모델 이름 (예: "claude-opus-4-8[1m]" → "opus 4.8")
+    private static string ShortModel(string id)
+    {
+        string s = id.Replace("claude-", "");
+        int br = s.IndexOf('[');
+        if (br >= 0) s = s[..br];
+        var parts = s.Split('-');
+        return parts.Length >= 3 ? $"{parts[0]} {parts[1]}.{parts[2]}" : s;
+    }
+
+    // ---------------- 4단계 승인 창 ----------------
+
+    // 승인 창을 띄우고, 사용자가 고르거나 CLI가 요청을 취소할 때까지 기다림
+    private Task<bool> ShowApprovalAsync(ApprovalRequest req, Action<Action> registerClose)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        var win = new ApprovalWindow(req);
+        win.Closed += (_, _) => tcs.TrySetResult(win.Approved);
+        registerClose(() => { tcs.TrySetResult(false); win.Close(); });
+
+        StatusText.Text = "허락 기다리는 중…";
+        win.Show();
+        return tcs.Task;
+    }
+
+    // ---------------- 6단계: 데스크톱 앱으로 넘기기 ----------------
+
+    // Claude 데스크톱 앱의 딥링크(claude://claude.ai/new?q=...)로 새 대화를 열고 지금까지의 대화를 입력창에 채움
+    // 링크 길이 제한 때문에 링크에는 최근 대화만 넣고, 전체 대화는 클립보드에 복사함
+    private void HandOffToDesktop()
+    {
+        const string intro = "바탕화면 고양이 GAFIL과 나누던 대화를 이어서 하고 싶어.\n\n";
+        var full = new StringBuilder();
+        foreach (var (isUser, text) in _history)
+            full.Append(isUser ? "나: " : "GAFIL: ").Append(text).Append('\n');
+
+        string convo = full.ToString();
+        const int maxChars = 600;   // 한글은 URL 인코딩하면 9배로 길어짐 → 링크가 너무 길어지지 않게 제한
+        string recent = convo.Length > maxChars ? "…" + convo[^maxChars..] : convo;
+        string q = convo.Length == 0 ? "" : intro + recent;
+
+        try
+        {
+            if (convo.Length > 0) Clipboard.SetText(intro + convo);
+        }
+        catch { }   // 다른 프로그램이 클립보드를 잡고 있으면 실패할 수 있음 (링크 열기는 계속)
+
+        string url = q.Length == 0 ? "claude://claude.ai/new" : "claude://claude.ai/new?q=" + Uri.EscapeDataString(q);
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            StatusText.Text = convo.Length > maxChars ? "앱으로 넘겼어 (전체 대화는 클립보드에)" : "Claude 앱으로 넘겼어";
+            AppSettings.Log($"[앱 전환] Claude 데스크톱 앱 열기 ({convo.Length}자 대화)");
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = "Claude 앱을 열지 못했어";
+            AppSettings.Log($"[앱 전환] 실패: {ex.Message}");
+        }
+    }
+
+    private static SolidColorBrush Brush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+}

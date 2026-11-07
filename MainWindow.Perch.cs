@@ -132,6 +132,7 @@ public partial class MainWindow
 
     private const int LedgeSinkRows = 3;           // 엎드림·내려다보기 그림은 아래 3행이 창 윗변 아래(창 앞)로 내려옴
     private const double MaxLeapUp = 240;          // 한 번에 뛰어오를 수 있는 높이 (DIP)
+    private double _leapUp = MaxLeapUp;            // 이번 여행에서 쓰는 점프 한계 (몸짓 알림 때는 더 높이 뜀)
     private const double MaxLeapGap = 320;         // 한 번에 건너뛸 수 있는 가로 틈 (DIP)
     private const double ClimbSpeed = 0.9;         // 벽 타기 속도 (DIP/틱)
     private const double CaptionButtons = 170;     // 창 오른쪽 위 최소화·최대화·닫기 버튼 자리 (가리지 않기)
@@ -256,7 +257,7 @@ public partial class MainWindow
         long ex = GetWindowLongPtr(h, GWL_EXSTYLE).ToInt64();
         long st = GetWindowLongPtr(h, GWL_STYLE).ToInt64();
         if ((ex & WS_EX_TOOLWINDOW) != 0 || (st & WS_CHILD) != 0) return false;
-        if (GetWindowTextLength(h) == 0) return false;
+        if (TitleOf(h).Length == 0) return false;   // 메시지를 보내지 않고 읽음 (멈춘 창에서 기다리지 않게)
         var cls = new StringBuilder(64);
         GetClassName(h, cls, cls.Capacity);
         string c = cls.ToString();
@@ -418,11 +419,12 @@ public partial class MainWindow
     // 바닥에서 가끔: 올라갈 창을 하나 골라 길을 찾음. 찾으면 true
     private bool TryStartExplore()
     {
-        if (!_settings.ClimbWindows || Perched || _runningToRemind || _claude.ScreenActive) return false;
+        if (!_settings.ClimbWindows || Perched || _runningToRemind || _claude.ScreenActive || AlertActive) return false;
         if (DateTime.Now < _nextExplore) return false;
         _nextExplore = DateTime.Now.AddSeconds(_rnd.Next(60, 180));
         var wa = WorkArea;
         RefreshPlatforms(wa, force: true);
+        _leapUp = MaxLeapUp;
         var goals = _platforms.OrderBy(_ => _rnd.Next()).ToList();
         foreach (var g in goals)
         {
@@ -462,11 +464,11 @@ public partial class MainWindow
     }
 
     // a(null = 바닥)에서 b로 한 번에 뛸 수 있는지
-    private static bool CanLeap(Rect wa, Platform? a, Platform b)
+    private bool CanLeap(Rect wa, Platform? a, Platform b)
     {
         double ha = a == null ? 0 : wa.Bottom - a.Value.Top;
         double hb = wa.Bottom - b.Top;
-        if (hb - ha > MaxLeapUp || hb < ha + 30) return false;   // 너무 높거나, 올라가는 길이 아님
+        if (hb - ha > _leapUp || hb < ha + 30) return false;   // 너무 높거나, 올라가는 길이 아님
         if (a == null) return true;                              // 바닥은 어디로든 걸어갈 수 있음
         double gap = Math.Max(0, Math.Max(b.X1 - a.Value.X2, a.Value.X1 - b.X2));
         return gap <= MaxLeapGap;
@@ -476,7 +478,7 @@ public partial class MainWindow
     // 창 아래쪽이 바닥에서 점프로 닿는 높이여야 함 (창이 공중에 떠 있으면 옆변까지 허공을 기어오르게 됨)
     private double? ClimbEdge(Rect wa, Platform g)
     {
-        if (GrabHeight(wa, g) > MaxLeapUp) return null;
+        if (GrabHeight(wa, g) > _leapUp) return null;
         var sides = new List<double>();
         if (Math.Abs(g.X1 - g.WinLeft) < 2) sides.Add(g.X1);
         if (Math.Abs(g.X2 - g.WinRight) < 2) sides.Add(g.X2);
@@ -684,7 +686,6 @@ public partial class MainWindow
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lp);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr h);
     [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr h);
-    [DllImport("user32.dll")] private static extern int GetWindowTextLength(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr h, int i);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr h, int a, out RECT r, int size);

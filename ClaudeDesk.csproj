@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>GAFIL</AssemblyName>
     <!-- 버전: GitHub Releases 태그(v1.1.0)와 맞춤. 업데이트 확인에 사용 -->
-    <Version>1.4.2</Version>
+    <Version>1.5.0</Version>
     <RootNamespace>ClaudeDesk</RootNamespace>
     <ApplicationIcon>gafil.ico</ApplicationIcon>
     <!-- 모니터별 DPI 인식(Per-Monitor V2): 화면 캡처·마우스 좌표를 실제 픽셀로 일관되게 (app.manifest 설명 참고) -->

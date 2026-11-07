@@ -82,6 +82,7 @@ public partial class MainWindow
             ['G'] = Hex(0x1C2433),   // 선글라스
             ['R'] = Hex(0xD8352A),   // 목도리 빨강
             ['B'] = Hex(0x3E6FD1),   // 나비넥타이 파랑
+            ['X'] = Hex(0xFF5A3C),   // 몸짓 알림 '!'
         };
     }
 
@@ -108,6 +109,7 @@ public partial class MainWindow
         // 흔들린 매달림 그림은 6행부터 몸이 옆으로 밀려 있음(SwingRows) → 장식도 같은 만큼 밀어 줌
         int swing = ReferenceEquals(frame, HangL) ? -1 : ReferenceEquals(frame, HangR) ? 1 : 0;
         bool mirror = ReferenceEquals(frame, ClimbB);   // 벽 타기 B는 A를 좌우로 뒤집은 그림
+        int tapDx = ReferenceEquals(frame, TapA) || ReferenceEquals(frame, TapB) ? -1 : 0;   // 툭툭 그림은 한 칸 왼쪽
         foreach (var (x, y, c) in dots)
         {
             if (peek)
@@ -117,7 +119,7 @@ public partial class MainWindow
                 continue;
             }
             int sx = y < 6 ? 0 : y < 9 ? swing : swing * 2;
-            yield return (mirror ? 15 - x : x + sx, y + dy, c);
+            yield return (mirror ? 15 - x : x + sx + tapDx, y + dy, c);
         }
     }
 
@@ -173,6 +175,16 @@ public partial class MainWindow
             else _nextExplore = DateTime.Now.AddSeconds(5);   // 켜면 곧 한 번 올라가 봄
         };
         CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), climb);
+
+        // 몸짓 알림 켜기/끄기 (알림 창·응답 없는 앱·오래 일함. 토큰 0)
+        var alerts = new MenuItem { Header = L.T("몸짓 알림 (오류 창·멈춘 앱·휴식)", "Body-language alerts (dialogs, frozen apps, breaks)"), IsCheckable = true, IsChecked = _settings.BodyAlerts };
+        alerts.Click += (_, _) =>
+        {
+            _settings.BodyAlerts = alerts.IsChecked;
+            try { _settings.Save(); } catch { }
+            if (!alerts.IsChecked && AlertActive) EndAlert(markDone: false);
+        };
+        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), alerts);
     }
 
     private void SaveLook()

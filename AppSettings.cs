@@ -52,6 +52,11 @@ public sealed class AppSettings
     // 가끔 창 위로 올라가기 (창 윗변을 발판으로 점프·벽 타기)
     public bool ClimbWindows { get; set; } = true;
 
+    // 몸짓 알림: 알림 창이 뜨거나 프로그램이 멈추면 그 창으로 가서 몸짓, 오래 일하면 드러누움 (토큰 0)
+    public bool BodyAlerts { get; set; } = true;
+    // 쉬지 않고 몇 분 일하면 쉬라고 알릴지. 0이면 끔 (5분 넘게 입력이 없으면 쉰 것으로 봄)
+    public int BreakMinutes { get; set; } = 90;
+
     // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
     public bool SaveHistory { get; set; } = true;
 

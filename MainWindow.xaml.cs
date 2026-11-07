@@ -133,7 +133,7 @@ public partial class MainWindow : Window
     // 색 팔레트는 고른 털 색에 따라 만듦 (MainWindow.Look.cs의 _palette)
 
     // 고양이가 할 수 있는 행동
-    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly }
+    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly, Tap }
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly DispatcherTimer _dotsTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
@@ -239,6 +239,7 @@ public partial class MainWindow : Window
         InitUpdateCheck();
         InitVoice();
         InitTaskbarFloor();
+        InitAlerts();
         SetupMenu();
 
         // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
@@ -520,6 +521,7 @@ public partial class MainWindow : Window
         if (UpdateRunToReminder()) { UpdateSprite(); ApplyPosition(); return; }   // 알림 때문에 달려가는 중 (공중이면 먼저 착지)
 
         var wa = WorkArea;
+        if (UpdateAlert(wa)) { UpdateSprite(); ApplyPosition(); return; }   // 몸짓 알림: 그 창으로 가서 몸짓 (MainWindow.Alerts.cs)
         // 화면 조작 중에는 창 위에 있으면 클릭을 가리지 않게 내려옴
         if (_claude.ScreenActive && Perched && _state != CatState.Jump) StepOffPerch();
 
@@ -545,6 +547,7 @@ public partial class MainWindow : Window
     // 가끔(1~3분에 한 번쯤) 창 위로 올라가기. 창 위에 있으면 창 위의 행동을 고름 (MainWindow.Perch.cs)
     private void ChooseNextState()
     {
+        if (AlertActive && (_alertArrived || (Perched && _perch == _alertHwnd))) { HoldAlertPose(WorkArea); return; }   // 몸짓 알림 중이면 그대로
         if (TryChooseMoodState()) return;   // 밤·CPU 바쁨 등 기분이 먼저
         if (Perched) { ChoosePerchState(); return; }
         if (_rnd.Next(100) < 30 && TryStartExplore()) return;
@@ -627,6 +630,7 @@ public partial class MainWindow : Window
                 CatState.Loaf => (_animTick / 30) % 2 == 0 ? LedgeA : LedgeB,    // 늘어뜨린 꼬리 끝을 살랑살랑
                 CatState.Peek => PeekFrame,
                 CatState.Belly => BellyFrame,
+                CatState.Tap => (_animTick / 14) % 2 == 0 ? TapA : TapB,   // 응답 없는 창을 앞발로 툭툭 (MainWindow.Alerts.cs)
                 _ => _leaping ? LeapFrame : JumpFrame,
             };
 
@@ -719,6 +723,7 @@ public partial class MainWindow : Window
         if (_bubbleOpen)
         {
             _unread = false;
+            ShowAlertInBubble();   // 몸짓 알림 중이었으면 무엇 때문인지 보여 줌 (토큰 0)
             // 점프·벽 타기 중이었다면 바닥(또는 올라가 있던 창 위)에 내려놓고 앉힘
             CancelTrip();
             _jumpY = 0;

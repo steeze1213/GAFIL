@@ -1,5 +1,7 @@
 # GAFIL — a pixel cat on your desktop × Claude
 
+<p align="center"><img src="steam/art/capsules/header_capsule_920x430.png" alt="GAFIL — a pixel cat on your desktop" width="640"></p>
+
 [한국어](README.md) | **English**
 
 ![GAFIL sprites: walking, sitting, thinking, lying down, jumping](docs/gafil.png)
@@ -8,6 +10,25 @@
 Click it to talk and **Claude** answers. With your permission it can also run commands, work with files and even **operate your screen** for you.
 
 > Unofficial fan project — not affiliated with or endorsed by Anthropic.
+
+---
+
+## A quick look
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/1_chat.png" alt="Talk to it and Claude answers; commands run only after you approve"><br><sub>Talk to it and Claude answers; commands run only after you approve</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/2_quick_answers.png" alt="Simple math answered right on your PC (zero tokens)"><br><sub>Simple math answered right on your PC (zero tokens)</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/3_windows.png" alt="Climbs onto your windows to lounge or tuck itself in"><br><sub>Climbs onto your windows to lounge or tuck itself in</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/4_skills_and_secrets.png" alt="Introduces what it can do as you get closer"><br><sub>Introduces what it can do as you get closer</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/5_looks.png" alt="5 fur colors, 4 outfits"><br><sub>5 fur colors, 4 outfits</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/en/6_churu.png" alt="Give it churu (zero tokens)"><br><sub>Give it churu (zero tokens)</sub></td>
+</tr>
+</table>
 
 ---
 

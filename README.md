@@ -1,5 +1,7 @@
 # GAFIL — 바탕화면 픽셀 고양이 × Claude
 
+<p align="center"><img src="steam/art/capsules/header_capsule_920x430.png" alt="GAFIL — 바탕화면 픽셀 고양이" width="640"></p>
+
 **한국어** | [English](README.en.md)
 
 ![GAFIL 스프라이트: 걷기, 앉기, 생각하기, 눕기, 점프](docs/gafil.png)
@@ -9,6 +11,25 @@
 
 > An orange pixel cat that lives on your Windows desktop and talks to you through Claude (via the Claude Code CLI).
 > Unofficial fan project — not affiliated with or endorsed by Anthropic.
+
+---
+
+## 둘러보기
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/1_chat.png" alt="말을 걸면 Claude가 대답하고, 명령은 승인 후 실행"><br><sub>말을 걸면 Claude가 대답하고, 명령은 승인 후 실행</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/2_quick_answers.png" alt="간단한 계산은 PC에서 바로 (토큰 0)"><br><sub>간단한 계산은 PC에서 바로 (토큰 0)</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/3_windows.png" alt="창 위로 올라가 엎드리거나 상자처럼 쏙"><br><sub>창 위로 올라가 엎드리거나 상자처럼 쏙</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/4_skills_and_secrets.png" alt="친해질수록 할 줄 아는 것을 하나씩 소개"><br><sub>친해질수록 할 줄 아는 것을 하나씩 소개</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/5_looks.png" alt="털 색 5가지, 옷·소품 4가지"><br><sub>털 색 5가지, 옷·소품 4가지</sub></td>
+<td width="50%" align="center"><img src="steam/art/screenshots/ko/6_churu.png" alt="츄르를 주면 냠냠 (토큰 0)"><br><sub>츄르를 주면 냠냠 (토큰 0)</sub></td>
+</tr>
+</table>
 
 ---
 

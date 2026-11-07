@@ -122,6 +122,7 @@ public partial class MainWindow
                 dots.Add((4 + (flipped ? 4 - x : x), 1 - up + y, 'Z'));
         }
         AddAlertMark(dots);   // 몸짓 알림 중이면 머리 옆에 '!'
+        AddEggOverlay(dots);  // 츄르 하트
         return dots;
     }
 }

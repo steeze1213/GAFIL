@@ -40,6 +40,38 @@ public static class CatMeow
         catch { return false; }
     }
 
+    // 하악! (귀찮게 했을 때): 바람 새는 소리 = 높은 쪽 소음이 확 커졌다 잦아듦. 설정에서 소리를 끄면 안 냄
+    public static void TryHiss(bool enabled)
+    {
+        if (!enabled) return;
+        try
+        {
+            int n = (int)(Rate * 0.55);
+            var buf = new float[n];
+            var f = new Formant();
+            f.Set(4200, 2600);
+            double prev = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double t = (double)i / n;
+                double noise = Rng.NextDouble() - 0.5;
+                double hp = noise - prev;   // 낮은 소리를 빼서 '쉬익'
+                prev = noise;
+                double env = Smooth(t / 0.06) * Math.Pow(1 - t, 1.6);
+                buf[i] = (float)(f.Run(hp) * env);
+            }
+            float peak = buf.Max(Math.Abs);
+            if (peak > 0) for (int i = 0; i < n; i++) buf[i] = buf[i] / peak * 0.22f;
+            var all = new List<float>(new float[(int)(Rate * 0.02)]);
+            all.AddRange(buf);
+            all.AddRange(new float[(int)(Rate * 0.02)]);
+            _player?.Dispose();
+            _player = new SoundPlayer(new MemoryStream(ToWav(all)));
+            _player.Play();
+        }
+        catch { }
+    }
+
     // 울음 1~2번을 이어 붙인 WAV (16bit mono)
     public static byte[] Build(int times, Style st)
     {

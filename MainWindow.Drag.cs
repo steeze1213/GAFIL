@@ -105,7 +105,7 @@ public partial class MainWindow
             if (!_mouseDown)
             {
                 // 누를 때 끌기를 시작하지 않은 경우(말풍선이 열려 있었음 등) → 보통 클릭
-                if (!_claude.ScreenActive) ToggleBubble();
+                if (!_claude.ScreenActive && !RegisterCatClick()) ToggleBubble();   // 1.5초 안에 5번이면 하악 (MainWindow.Eggs.cs)
                 return;
             }
             // 플래그를 먼저 정리한 뒤 캡처를 풂: ReleaseMouseCapture는 LostMouseCapture를 '즉시' 부르므로
@@ -116,7 +116,7 @@ public partial class MainWindow
             Cat.ReleaseMouseCapture();
             if (!wasDragging)
             {
-                ToggleBubble();
+                if (!RegisterCatClick()) ToggleBubble();
                 return;
             }
 

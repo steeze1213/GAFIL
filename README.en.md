@@ -270,7 +270,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts) |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
 | `L.cs` | Korean/English strings |
@@ -290,6 +290,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.6.0** — Five hidden easter eggs 🥚 (play with it like a real cat to find them; all zero tokens)
 - **v1.5.0** — Body-language alerts: sits on error/warning dialogs with `!`, taps frozen windows, lies down after 90 minutes of work. Clicking shows what's up locally (zero tokens); for dialogs the question is only pre-filled and sent when you press Enter
 - **v1.4.2** — No more climbing thin air under a floating window: the cat jumps up to grab the window's side first, and skips climbing if the window floats too high
 - **v1.4.1** — Clicking the cat high up on a window no longer drops it to the floor; the bubble opens below the cat instead (expanding grows downward)

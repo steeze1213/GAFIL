@@ -133,7 +133,7 @@ public partial class MainWindow : Window
     // 색 팔레트는 고른 털 색에 따라 만듦 (MainWindow.Look.cs의 _palette)
 
     // 고양이가 할 수 있는 행동
-    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly, Tap }
+    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly, Tap, Hiss }
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly DispatcherTimer _dotsTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
@@ -516,12 +516,14 @@ public partial class MainWindow : Window
         bool wasPerched = Perched;
         TrackPerch();                             // 올라가 있는 창이 움직이면 따라가고, 사라지면 떨어짐 (MainWindow.Perch.cs)
         // 말풍선이 열려 있는 동안 창이 움직이거나 사라져도(→ 바닥으로) 위치를 맞춤
-        if (_bubbleOpen || _menuOpen) { if (wasPerched) ApplyPosition(); return; }     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
+        if (_bubbleOpen || _menuOpen) { if (wasPerched) ApplyPosition(); TickHearts(); return; }     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
         _animTick++;
         if (UpdateRunToReminder()) { UpdateSprite(); ApplyPosition(); return; }   // 알림 때문에 달려가는 중 (공중이면 먼저 착지)
 
         var wa = WorkArea;
         if (UpdateAlert(wa)) { UpdateSprite(); ApplyPosition(); return; }   // 몸짓 알림: 그 창으로 가서 몸짓 (MainWindow.Alerts.cs)
+        if (_heartTicks > 0) _heartTicks--;
+        if (UpdateEggs(wa)) { UpdateSprite(); ApplyPosition(); return; }    // 이스터에그: 레이저 포인터·우다다·하악 (MainWindow.Eggs.cs)
         // 화면 조작 중에는 창 위에 있으면 클릭을 가리지 않게 내려옴
         if (_claude.ScreenActive && Perched && _state != CatState.Jump) StepOffPerch();
 
@@ -548,6 +550,7 @@ public partial class MainWindow : Window
     private void ChooseNextState()
     {
         if (AlertActive && (_alertArrived || (Perched && _perch == _alertHwnd))) { HoldAlertPose(WorkArea); return; }   // 몸짓 알림 중이면 그대로
+        if (TryStartZoomies()) return;      // 한밤중 하루 한 번 우다다 (MainWindow.Eggs.cs)
         if (TryChooseMoodState()) return;   // 밤·CPU 바쁨 등 기분이 먼저
         if (Perched) { ChoosePerchState(); return; }
         if (_rnd.Next(100) < 30 && TryStartExplore()) return;
@@ -630,7 +633,8 @@ public partial class MainWindow : Window
                 CatState.Loaf => (_animTick / 30) % 2 == 0 ? LedgeA : LedgeB,    // 늘어뜨린 꼬리 끝을 살랑살랑
                 CatState.Peek => PeekFrame,
                 CatState.Belly => BellyFrame,
-                CatState.Tap => (_animTick / 14) % 2 == 0 ? TapA : TapB,   // 응답 없는 창을 앞발로 툭툭 (MainWindow.Alerts.cs)
+                CatState.Tap => (_animTick / 14) % 2 == 0 ? TapA : TapB,
+                CatState.Hiss => HissFrame,   // 귀찮게 하면 하악 (MainWindow.Eggs.cs)   // 응답 없는 창을 앞발로 툭툭 (MainWindow.Alerts.cs)
                 _ => _leaping ? LeapFrame : JumpFrame,
             };
 
@@ -724,6 +728,7 @@ public partial class MainWindow : Window
         {
             _unread = false;
             ShowAlertInBubble();   // 몸짓 알림 중이었으면 무엇 때문인지 보여 줌 (토큰 0)
+            GreetCatDay();         // 고양이의 날이면 첫 인사 (MainWindow.Eggs.cs)
             // 점프·벽 타기 중이었다면 바닥(또는 올라가 있던 창 위)에 내려놓고 앉힘
             CancelTrip();
             _jumpY = 0;
@@ -909,6 +914,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (TryChuru()) return;   // "츄르"는 Claude에게 보내지 않고 고양이가 받아먹음 (MainWindow.Eggs.cs)
         await SubmitInputAsync(fromVoice: false);
     }
 

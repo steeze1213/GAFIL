@@ -34,6 +34,7 @@ public partial class MainWindow
     private static readonly Dictionary<string, (int X, int Y, char C)[]> OutfitSide = new()
     {
         ["crown"] = new[] { (11, 0, 'Y'), (13, 0, 'Y'), (11, 1, 'Y'), (12, 1, 'Y'), (13, 1, 'Y') },
+        ["party"] = new[] { (12, 0, 'Y'), (12, 1, 'R'), (11, 2, 'B'), (12, 2, 'R'), (13, 2, 'B') },   // 고양이의 날 파티 모자
         ["sunglasses"] = new[] { (10, 3, 'G'), (11, 3, 'G'), (12, 3, 'G'), (13, 3, 'G'), (14, 3, 'G'), (11, 2, 'G'), (13, 2, 'G'), (13, 3, 'Z') },   // Z = 렌즈 반짝임(흰색)
         ["scarf"] = new[] { (9, 5, 'R'), (10, 5, 'R'), (11, 5, 'R'), (12, 5, 'R'), (13, 5, 'R'), (14, 5, 'R'), (10, 6, 'R') },
         ["bowtie"] = new[] { (11, 5, 'B'), (12, 5, 'K'), (13, 5, 'B') },
@@ -43,6 +44,7 @@ public partial class MainWindow
     private static readonly Dictionary<string, (int X, int Y, char C)[]> OutfitFront = new()
     {
         ["crown"] = new[] { (6, 0, 'Y'), (9, 0, 'Y'), (6, 1, 'Y'), (7, 1, 'Y'), (8, 1, 'Y'), (9, 1, 'Y') },
+        ["party"] = new[] { (7, 0, 'Y'), (8, 0, 'Y'), (7, 1, 'R'), (8, 1, 'B'), (6, 2, 'B'), (7, 2, 'R'), (8, 2, 'B'), (9, 2, 'R') },
         ["sunglasses"] = new[] { (4, 3, 'G'), (5, 3, 'G'), (6, 3, 'G'), (7, 3, 'G'), (8, 3, 'G'), (9, 3, 'G'), (10, 3, 'G'), (11, 3, 'G'), (5, 2, 'G'), (6, 2, 'G'), (9, 2, 'G'), (10, 2, 'G'), (5, 3, 'Z'), (9, 3, 'Z') },
         ["scarf"] = new[] { (5, 5, 'R'), (6, 5, 'R'), (7, 5, 'R'), (8, 5, 'R'), (9, 5, 'R'), (10, 5, 'R'), (5, 6, 'R') },
         ["bowtie"] = new[] { (6, 6, 'B'), (7, 6, 'K'), (8, 6, 'K'), (9, 6, 'B') },
@@ -52,6 +54,7 @@ public partial class MainWindow
     private static readonly Dictionary<string, (int X, int Y, char C)[]> OutfitBack = new()
     {
         ["crown"] = new[] { (6, 0, 'Y'), (9, 0, 'Y'), (6, 1, 'Y'), (7, 1, 'Y'), (8, 1, 'Y'), (9, 1, 'Y') },
+        ["party"] = new[] { (7, 0, 'Y'), (8, 0, 'Y'), (7, 1, 'R'), (8, 1, 'B'), (6, 2, 'B'), (7, 2, 'R'), (8, 2, 'B'), (9, 2, 'R') },
         ["scarf"] = new[] { (5, 5, 'R'), (6, 5, 'R'), (7, 5, 'R'), (8, 5, 'R'), (9, 5, 'R'), (10, 5, 'R') },
     };
 
@@ -82,6 +85,7 @@ public partial class MainWindow
             ['G'] = Hex(0x1C2433),   // 선글라스
             ['R'] = Hex(0xD8352A),   // 목도리 빨강
             ['B'] = Hex(0x3E6FD1),   // 나비넥타이 파랑
+            ['H'] = Hex(0xFF6996),   // 츄르 하트
             ['X'] = Hex(0xFF5A3C),   // 몸짓 알림 '!'
         };
     }
@@ -91,8 +95,8 @@ public partial class MainWindow
     // 지금 프레임에 입힐 옷·소품 점들
     private IEnumerable<(int X, int Y, char C)> OutfitOverlay(string[] frame)
     {
-        string id = _settings.Outfit;
-        if (string.IsNullOrEmpty(id) || id == "none") yield break;
+        string id = IsCatDay ? "party" : _settings.Outfit;   // 고양이의 날엔 파티 모자 (MainWindow.Eggs.cs)
+        if (string.IsNullOrEmpty(id) || id == "none" || ReferenceEquals(frame, HissFrame)) yield break;
 
         bool hanging = ReferenceEquals(frame, HangC) || ReferenceEquals(frame, HangL) || ReferenceEquals(frame, HangR);
         bool back = ReferenceEquals(frame, ClimbA) || ReferenceEquals(frame, ClimbB);   // 벽 타기는 등이 보이는 모습

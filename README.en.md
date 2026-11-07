@@ -90,7 +90,7 @@ Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 ```powershell
 git clone https://github.com/steeze1213/GAFIL.git
 cd GAFIL
-dotnet publish -c Release -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o dist
+dotnet publish -c Release -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -o dist
 .\install.cmd
 ```
 
@@ -189,6 +189,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
   "ClimbWindows": true,
   "BodyAlerts": true,
   "BreakMinutes": 90,
+  "IdleSleepMinutes": 10,
   "VoiceHotkey": "Ctrl+Alt+Space",
   "VoiceAutoSendMs": 1800
 }
@@ -209,6 +210,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
 | `Meow` | Occasional meows. `false` = quiet (reminders use the Windows notification sound) |
 | `ClimbWindows` | Now and then climb onto windows. `false` = stay on the floor |
 | `BodyAlerts` | Body-language alerts (dialogs, frozen apps, breaks). `false` = off |
+| `IdleSleepMinutes` | After this many minutes without a question, the Claude process is shut down to free memory (~500 MB). It restarts on the next question and continues the same conversation (a few seconds slower). `0` = never |
 | `BreakMinutes` | Minutes of non-stop work before the break reminder. `0` turns only the break reminder off (5+ minutes without input counts as a break) |
 | `VoiceHotkey` | Hotkey for talking. Empty = off |
 | `VoiceAutoSendMs` | How long to wait after you stop speaking before sending (ms). `0` = no auto-send, press Enter |
@@ -290,6 +292,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.6.1** — Lighter: after 10 idle minutes the Claude process is shut down to free ~500 MB (the next question resumes the same conversation); the exe is no longer compressed, cutting GAFIL's own memory by ~60–120 MB (download is now ~160 MB)
 - **v1.6.0** — Five hidden easter eggs 🥚 (play with it like a real cat to find them; all zero tokens)
 - **v1.5.0** — Body-language alerts: sits on error/warning dialogs with `!`, taps frozen windows, lies down after 90 minutes of work. Clicking shows what's up locally (zero tokens); for dialogs the question is only pre-filled and sent when you press Enter
 - **v1.4.2** — No more climbing thin air under a floating window: the cat jumps up to grab the window's side first, and skips climbing if the window floats too high

@@ -57,6 +57,10 @@ public sealed class AppSettings
     // 쉬지 않고 몇 분 일하면 쉬라고 알릴지. 0이면 끔 (5분 넘게 입력이 없으면 쉰 것으로 봄)
     public int BreakMinutes { get; set; } = 90;
 
+    // 질문이 없는 채로 몇 분 지나면 claude 프로세스를 꺼서 메모리(약 500MB)를 돌려줄지. 0이면 끄지 않음.
+    // 다음 질문 때 같은 대화로 다시 켜짐 (처음 몇 초만 더 걸림)
+    public int IdleSleepMinutes { get; set; } = 10;
+
     // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
     public bool SaveHistory { get; set; } = true;
 

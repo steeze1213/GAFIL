@@ -91,7 +91,7 @@ claude
 ```powershell
 git clone https://github.com/steeze1213/GAFIL.git
 cd GAFIL
-dotnet publish -c Release -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o dist
+dotnet publish -c Release -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -o dist
 .\install.cmd
 ```
 
@@ -190,6 +190,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
   "ClimbWindows": true,
   "BodyAlerts": true,
   "BreakMinutes": 90,
+  "IdleSleepMinutes": 10,
   "VoiceHotkey": "Ctrl+Alt+Space",
   "VoiceAutoSendMs": 1800
 }
@@ -210,6 +211,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 | `Meow` | 가끔 야옹 소리. `false`면 조용히 (알림은 Windows 알림음) |
 | `ClimbWindows` | 가끔 창 위로 올라가기. `false`면 바닥에서만 지냄 |
 | `BodyAlerts` | 몸짓 알림(오류 창·응답 없음·휴식). `false`면 끔 |
+| `IdleSleepMinutes` | 질문이 없는 채로 이만큼(분) 지나면 Claude 프로세스를 꺼서 메모리(약 500MB)를 돌려줌. 다음 질문 때 같은 대화로 다시 켜짐(처음 몇 초 더 걸림). `0`이면 끄지 않음 |
 | `BreakMinutes` | 쉬지 않고 몇 분 일하면 쉬라고 할지. `0`이면 휴식 알림만 끔 (5분 넘게 입력이 없으면 쉰 것으로 봄) |
 | `VoiceHotkey` | 말로 하기 단축키. 빈 값이면 끔 |
 | `VoiceAutoSendMs` | 말이 멈춘 뒤 자동으로 보내기까지 기다리는 시간(ms). `0`이면 자동 보내기 없이 Enter로 |
@@ -291,6 +293,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 
 ## 버전 기록
 
+- **v1.6.1** — 가볍게: 10분 동안 질문이 없으면 Claude 프로세스를 꺼서 메모리 약 500MB를 돌려줌(다음 질문 때 같은 대화로 이어짐), 실행 파일 압축을 풀어 GAFIL 자체 메모리도 약 60~120MB 줄임 (대신 내려받는 파일은 약 160MB)
 - **v1.6.0** — 숨은 재미 다섯 가지 🥚 (고양이답게 놀아 주면 나와요. 전부 토큰 0)
 - **v1.5.0** — 몸짓 알림: 오류·경고 창 위에 앉아 `!`, 응답 없는 창 위에서 앞발 툭툭, 90분 일하면 드러누움. 클릭하면 PC에서 바로 알려 줌(토큰 0). 오류 창은 질문을 입력창에 써 두고 Enter를 눌러야 Claude에게 보냄
 - **v1.4.2** — 공중에 떠 있는 창은 허공을 기어오르지 않음: 창 아래쪽까지 점프해서 매달린 다음 기어오름 (너무 높이 떠 있으면 벽 타기 안 함)

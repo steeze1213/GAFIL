@@ -240,6 +240,7 @@ public partial class MainWindow : Window
         InitVoice();
         InitTaskbarFloor();
         InitAlerts();
+        InitIdleSleep();
         SetupMenu();
 
         // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
@@ -279,6 +280,20 @@ public partial class MainWindow : Window
     private const uint MONITOR_DEFAULTTONEAREST = 2;
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
+
+    // 한동안 질문이 없으면 claude 프로세스를 꺼서 메모리를 돌려줌 (게임할 때 등). 1분마다 확인
+    private readonly DispatcherTimer _idleTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    private void InitIdleSleep()
+    {
+        _idleTimer.Tick += (_, _) =>
+        {
+            int min = _settings.IdleSleepMinutes;
+            if (min <= 0 || Thinking || !_claude.Running || DateTime.Now - _claude.LastUsed < TimeSpan.FromMinutes(min)) return;
+            if (_claude.Sleep()) AppSettings.Log($"[절약] {min}분 동안 질문이 없어서 claude 프로세스를 끔 (다음 질문 때 같은 대화로 다시 켜짐)");
+        };
+        _idleTimer.Start();
+        Closed += (_, _) => _idleTimer.Stop();
+    }
 
     // XAML에 적힌 고정 문구를 지금 언어로 바꿔 넣음 (XAML 기본값은 한국어)
     private void ApplyLanguage()

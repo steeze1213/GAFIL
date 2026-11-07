@@ -207,6 +207,7 @@ public sealed class ClaudeClient : IDisposable
     // onText: 답이 늘어날 때마다 지금까지의 전체 텍스트, onActivity: 도구 사용 같은 진행 상황 한 줄
     public async Task<string> AskAsync(string question, Action<string> onText, Action<string> onActivity, CancellationToken ct)
     {
+        LastUsed = DateTime.Now;
         EnsureStarted();
 
         // 안전장치(훅) 등록이 끝나야 질문을 보냄. 실패하거나 30초 안에 답이 없으면 실행하지 않음
@@ -256,6 +257,7 @@ public sealed class ClaudeClient : IDisposable
         {
             // 화면 조작 허용은 이 질문까지만 → 다음 질문에서 다시 승인
             SetScreenActive(false);
+            LastUsed = DateTime.Now;
 
             // 질문이 끝난 뒤 늦게 도착한 출력이 이미 사라진 화면 요소를 건드리지 않도록 콜백을 끊음
             if (ReferenceEquals(_turn, turn))
@@ -325,6 +327,21 @@ public sealed class ClaudeClient : IDisposable
     }
 
     public void Dispose() => Kill();
+
+    // ---------------- 잠자기 (메모리 아끼기) ----------------
+    // claude 프로세스는 기다리는 동안에도 메모리를 약 500MB 씀 → 한동안 질문이 없으면 꺼 둠.
+    // 세션 ID는 남겨 두므로 다음 질문 때 --resume으로 같은 대화를 이어감 (처음 몇 초만 더 걸림)
+
+    public DateTime LastUsed { get; private set; } = DateTime.Now;
+    public bool Running => _proc is { HasExited: false };
+
+    // 지금 끌 수 있으면 끄고 true (질문·화면 조작·승인 창이 진행 중이면 그대로 둠)
+    public bool Sleep()
+    {
+        if (!Running || _turn != null || ScreenActive || _pendingApprovals.Count > 0) return false;
+        Kill();
+        return true;
+    }
 
     // ---------------- 프로세스 시작 ----------------
 

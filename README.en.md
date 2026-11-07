@@ -59,7 +59,7 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 
 ### 1. Install Claude Code and log in
 
-> **Since v1.9 you can skip this.** If Claude Code is missing or not logged in when GAFIL first starts, a **setup helper** opens and lets you install it, log in with your subscription, or paste an API key with one click each. Reopen it any time: right-click → **Connect to Claude**.
+> **Since v1.9 you can skip this.** If Claude Code is missing or not logged in when GAFIL first starts, a **setup helper** opens and helps you install it, check the connection and paste an API key. For a subscription, log in to Claude Code yourself (below) and GAFIL uses it. Reopen it any time: right-click → **Connect to Claude**.
 
 To do it yourself, in PowerShell:
 
@@ -284,7 +284,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
 | `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros), `Setup` (opens the setup helper) |
 | `Edition.cs` | Edition switch: default vs API-key-only (`-p:ApiKeyOnly=true`) |
-| `SetupWindow.cs` | Setup helper: install Claude Code, subscription login (`claude auth login`), save an API key, check the connection (`claude auth status`) |
+| `SetupWindow.cs` | Setup helper: install Claude Code, subscription login guidance, save an API key, check the connection (`claude auth status`) |
 | `QuickAnswer.cs` | Quick-answer math: expressions, percentages, units, city times, D-days (only when it's sure; otherwise it goes to Claude) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
@@ -305,6 +305,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.9.2** — The setup helper no longer has a subscription login button, just guidance (log in to Claude Code yourself and GAFIL uses it), out of respect for Anthropic's policy
 - **v1.9.1** — API-key-only edition build for redistributors (`-p:ApiKeyOnly=true`), third-party notices (THIRD-PARTY-NOTICES.md). The default edition is unchanged
 - **v1.9.0** — Setup helper: if Claude Code is missing or not logged in on first start, install it, log in with your subscription or paste an API key with a button each. Reopen from "Connect to Claude" in the menu
 - **v1.8.0** — Skill intros: nothing is locked; the cat introduces its features one at a time as you get closer, and once you're close it very rarely whispers an easter egg in purple. Turn off in the menu

@@ -31,7 +31,7 @@ public sealed class SetupWindow : Window
         Background = Paper; FontFamily = new FontFamily("Malgun Gothic, Segoe UI");
 
         _installBtn = PillButton(L.T("설치하기", "Install"), Accent, Brushes.White);
-        _loginBtn = PillButton(L.T("구독 계정으로 로그인", "Log in with subscription"), Accent, Brushes.White);
+        _loginBtn = PillButton(L.T("다시 확인", "Check again"), Chip, Ink);
         _keyBtn = PillButton(L.T("키 저장", "Save key"), Chip, Ink);
         _doneBtn = PillButton(L.T("나중에", "Later"), Chip, Ink);
 
@@ -56,8 +56,9 @@ public sealed class SetupWindow : Window
         {
         root.Children.Add(Text(L.T("둘 중 하나만 하면 돼.", "Pick one."), 12, Muted, margin: new Thickness(26, 2, 0, 8)));
         root.Children.Add(Text(L.T("A. Claude Pro / Max 구독이 있으면 (추천)", "A. If you have Claude Pro / Max (recommended)"), 12.5, Ink, FontWeights.SemiBold, new Thickness(26, 0, 0, 2)));
-        root.Children.Add(Text(L.T("누르면 브라우저가 열려. Claude 계정으로 로그인하고 '허용'을 누르면 끝.",
-                                   "Your browser opens. Log in to Claude and press Authorize."), 12, Muted, margin: new Thickness(26, 0, 0, 6)));
+        // 구독 로그인은 GAFIL이 대신하지 않음: 사용자가 Claude Code에 직접 로그인해 두면 그 계정을 씀 (Anthropic 정책 배려)
+        root.Children.Add(Text(L.T("Claude Code에 직접 로그인해 두면 그 계정을 그대로 써. PowerShell이나 터미널에서 claude 를 실행하고, 안내대로 로그인한 뒤 /exit 로 닫아. 다 하면 '다시 확인'.",
+                                   "If you log in to Claude Code yourself, I'll use that account. Run claude in PowerShell or a terminal, log in as it guides you, then type /exit. Then press Check again."), 12, Muted, margin: new Thickness(26, 0, 0, 6)));
         root.Children.Add(Row(new Thickness(26, 0, 0, 12), _loginBtn, Link(L.T("구독 알아보기", "See plans"), "https://claude.com/pricing")));
         root.Children.Add(Text(L.T("B. API 키로 쓰기 (쓴 만큼 요금)", "B. Use an API key (pay as you go)"), 12.5, Ink, FontWeights.SemiBold, new Thickness(26, 0, 0, 2)));
         }
@@ -81,7 +82,7 @@ public sealed class SetupWindow : Window
         Content = new Border { BorderBrush = Ink, BorderThickness = new Thickness(0, 3, 0, 0), Child = root };
 
         _installBtn.Click += (_, _) => RunInstall();
-        _loginBtn.Click += (_, _) => RunLogin();
+        _loginBtn.Click += async (_, _) => { ShowNote(null); await Refresh(true); if (!_loggedIn) ShowNote(L.T("아직 로그인이 안 보여. claude 를 실행해서 로그인을 끝까지 했는지 봐 줘.", "No login yet. Make sure you finished logging in after running claude.")); };
         _keyBtn.Click += (_, _) => SaveKey();
         _doneBtn.Click += (_, _) => Close();
         _poll.Tick += async (_, _) => { if (!_installed) await Refresh(checkAuth: false); };
@@ -170,28 +171,6 @@ public sealed class SetupWindow : Window
             SetState(_installState, false, L.T("설치하는 중… (창이 끝나면 저절로 ✓)", "Installing… (✓ appears when done)"), Muted);
         }
         catch (Exception ex) { ShowNote(L.T("설치 창을 열지 못했어: ", "Couldn't open the installer: ") + ex.Message); }
-    }
-
-    private async void RunLogin()
-    {
-        if (Edition.ApiKeyOnly) return;   // 배포판에는 구독 로그인이 없음
-        ShowNote(null);
-        string exe = ClaudeClient.FindClaude();
-        if (exe == null) { await Refresh(true); return; }
-        try
-        {
-            var psi = Launch(exe, "auth login --claudeai");
-            psi.UseShellExecute = false;   // 보이는 콘솔 창 (브라우저 주소가 안 열릴 때 거기서 복사)
-            using var p = Process.Start(psi);
-            AppSettings.Log("[시작 도우미] 구독 로그인 창을 엶");
-            SetState(_authState, false, L.T("브라우저에서 로그인해 줘…", "Log in in your browser…"), Muted);
-            _loginBtn.IsEnabled = false;
-            if (p != null) await Task.Run(() => p.WaitForExit(10 * 60 * 1000));
-        }
-        catch (Exception ex) { ShowNote(L.T("로그인 창을 열지 못했어: ", "Couldn't start login: ") + ex.Message); }
-        _loginBtn.IsEnabled = true;
-        await Refresh(true);
-        if (!_loggedIn) ShowNote(L.T("아직 연결이 안 됐어. 브라우저에서 '허용'까지 눌렀는지 보고 다시 해 봐.", "Not connected yet. Make sure you pressed Authorize in the browser, then try again."));
     }
 
     private async void SaveKey()

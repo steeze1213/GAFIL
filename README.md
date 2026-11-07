@@ -60,7 +60,7 @@
 
 ### 1. Claude Code 설치하고 로그인
 
-> **v1.9부터는 건너뛰어도 됩니다.** GAFIL을 처음 켰을 때 Claude Code가 없거나 로그인이 안 돼 있으면 **시작 도우미** 창이 떠서, 버튼 하나로 설치하고, 구독 계정으로 로그인하거나 API 키를 붙여 넣게 도와줍니다. 나중에 다시 열려면 오른쪽 클릭 → **Claude 연결 설정**.
+> **v1.9부터는 건너뛰어도 됩니다.** GAFIL을 처음 켰을 때 Claude Code가 없거나 로그인이 안 돼 있으면 **시작 도우미** 창이 떠서, 버튼 하나로 설치하고, 연결을 확인하고, API 키를 붙여 넣게 도와줍니다. 구독 계정은 Claude Code에 직접 로그인해 두면(아래 방법) 그대로 씁니다. 나중에 다시 열려면 오른쪽 클릭 → **Claude 연결 설정**.
 
 직접 하려면 PowerShell에서:
 
@@ -285,7 +285,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 | `MainWindow.xaml(.cs)` | 고양이 행동·픽셀 그리기, 말풍선, 메뉴, 화면 조작 모드 |
 | `MainWindow.*.cs` | 기능별 나눔: `Drag`(집어 옮기기), `Drop`(끌어다 주기), `History`(대화 기록), `Mood`(기분), `Look`(꾸미기), `Reminders`(알림), `Update`(새 버전), `OpenHotkey`(단축키), `Voice`(말로 하기), `Taskbar`(작업표시줄 피하기), `Perch`(창 위로 올라가기), `Alerts`(몸짓 알림), `Eggs`(숨은 재미), `Cozy`(상자·그루밍·꾹꾹이), `Quick`(바로 답하기), `Bond`(친밀도·소개), `Setup`(시작 도우미 열기) |
 | `Edition.cs` | 배포판 구분: 기본판과 API 키 전용 배포판(`-p:ApiKeyOnly=true`) |
-| `SetupWindow.cs` | 시작 도우미: Claude Code 설치, 구독 로그인(`claude auth login`), API 키 저장, 연결 확인(`claude auth status`) |
+| `SetupWindow.cs` | 시작 도우미: Claude Code 설치, 구독 로그인 안내, API 키 저장, 연결 확인(`claude auth status`) |
 | `QuickAnswer.cs` | 바로 답하기 계산: 계산식·퍼센트·단위·도시 시각·D-day (확실히 알아들을 때만, 아니면 Claude에게) |
 | `CatMeow.cs` | 야옹 소리를 코드로 합성 (녹음 파일 없음) |
 | `Reminders.cs` | 알림 저장소 + 알림 도구 (in-process MCP 서버 `gafil_time`) |
@@ -306,6 +306,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 
 ## 버전 기록
 
+- **v1.9.2** — 시작 도우미에서 구독 로그인 버튼을 빼고 안내로 바꿈 (구독은 Claude Code에 직접 로그인해 두면 그대로 씀). Anthropic 정책 배려
 - **v1.9.1** — 다시 배포하는 사람을 위한 API 키 전용 배포판 빌드(`-p:ApiKeyOnly=true`), 제3자 라이선스 고지(THIRD-PARTY-NOTICES.md) 추가. 기본판은 그대로
 - **v1.9.0** — 시작 도우미: 처음 켰을 때 Claude Code가 없거나 로그인이 안 돼 있으면 설치·구독 로그인·API 키 입력을 버튼으로 도와줌. 메뉴 "Claude 연결 설정"으로 언제든
 - **v1.8.0** — 할 줄 아는 것 소개: 기능은 잠그지 않고, 친해질수록 고양이가 하나씩 알려 줌. 많이 친해지면 아주 드물게 숨은 재미 하는 법을 보라색으로 귀띔. 메뉴에서 끄기

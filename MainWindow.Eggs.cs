@@ -218,6 +218,7 @@ public partial class MainWindow
         ChatScroll.ScrollToEnd();
         _heartTicks = 300;   // 약 5초
         KneadNow();          // 하트 보내며 꾹꾹이 (MainWindow.Cozy.cs)
+        BondOnChuru();       // 친밀도 (MainWindow.Bond.cs)
         CatMeow.TryMeow(_settings.Meow, force: true);
         AppSettings.Log("[이스터에그] 츄르");
         return true;

@@ -33,6 +33,7 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 | 🙀 Body-language alerts | When an **error/warning dialog** pops up the cat leaps onto it and shows `!`; when an app is **not responding** it taps on that window; after **90 minutes** without a break it lies belly-up mid-screen. Click the cat to see what's up. **Zero tokens**: no screenshots, no Claude calls. For dialogs it only pre-fills "What does this mean?" in the input; nothing is sent until you press Enter |
 | 🧮 Quick answers | Simple things like `3.5 in to cm`, `15% of 48000`, `time in New York`, `days until 12/25`, `100 days from now` are **answered on your PC without asking Claude** (**zero tokens**). Send the same thing again to ask Claude instead (turn off in the menu) |
 | 📦 Cat things | When a small window pops up the cat climbs on and **sits in it like a box**, **grooms** after being carried, and **kneads** when the bubble has been open and quiet for a while |
+| 💡 Skill intros | Everything is on from day one. As you spend time together, the cat opens with **"Hey, did you know I can do this?"** and introduces one feature at a time (at most one every 3 hours). Once you're close, it **very rarely (0.01% per minute)** whispers how to trigger a hidden easter egg, in **purple**. Closeness only grows from time together, opening the bubble and churu (asking Claude doesn't count). Turn off in the menu |
 | 🐱 Meow | **Now and then** it meows: when a reminder fires, when a reply arrives while the bubble is closed, when you put it down (about once per 10 minutes; can be turned off in the menu) |
 | 🌐 Korean / English | Follows your Windows display language (can be fixed in settings) |
 | ⬆ Update notice | The cat tells you when a new version is out, with a one-click download from the menu |
@@ -127,7 +128,7 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 - **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking
 - **Drag**: pick it up by the scruff. It drops to the floor where you release it and stays on that monitor
 - **Drop files/text**: they appear as 📎 chips above the input box → type what to do, or just press `Enter` (summarize)
-- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Climb onto windows, Answer simple math here, Body-language alerts, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
+- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Climb onto windows, Answer simple math here, Tell me what you can do, Body-language alerts, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
 
 ### The speech bubble
 
@@ -190,6 +191,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
   "Meow": true,
   "ClimbWindows": true,
   "QuickAnswers": true,
+  "SkillIntros": true,
   "BodyAlerts": true,
   "BreakMinutes": 90,
   "IdleSleepMinutes": 10,
@@ -213,6 +215,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
 | `Meow` | Occasional meows. `false` = quiet (reminders use the Windows notification sound) |
 | `ClimbWindows` | Now and then climb onto windows. `false` = stay on the floor |
 | `QuickAnswers` | Answer simple math, units, city times and D-days on your PC (zero tokens). `false` = send everything to Claude |
+| `SkillIntros` | Introduce features one at a time as you get closer, and very rarely whisper an easter egg. `false` = neither (`Bond`, `IntroducedSkills`, `HintedEggs`, `LastIntroAt` are progress GAFIL keeps) |
 | `BodyAlerts` | Body-language alerts (dialogs, frozen apps, breaks). `false` = off |
 | `IdleSleepMinutes` | After this many minutes without a question, the Claude process is shut down to free memory (~500 MB). It restarts on the next question and continues the same conversation (a few seconds slower). `0` = never |
 | `BreakMinutes` | Minutes of non-stop work before the break reminder. `0` turns only the break reminder off (5+ minutes without input counts as a break) |
@@ -276,7 +279,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers) |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros) |
 | `QuickAnswer.cs` | Quick-answer math: expressions, percentages, units, city times, D-days (only when it's sure; otherwise it goes to Claude) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
@@ -297,6 +300,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.8.0** — Skill intros: nothing is locked; the cat introduces its features one at a time as you get closer, and once you're close it very rarely whispers an easter egg in purple. Turn off in the menu
 - **v1.7.0** — Quick answers: math, percentages, units, city times and D-days are answered on your PC without asking Claude (zero tokens). Cat things: sits in newly opened small windows like a box, grooms after being carried, kneads when things are quiet
 - **v1.6.1** — Lighter: after 10 idle minutes the Claude process is shut down to free ~500 MB (the next question resumes the same conversation); the exe is no longer compressed, cutting GAFIL's own memory by ~60–120 MB (download is now ~160 MB)
 - **v1.6.0** — Five hidden easter eggs 🥚 (play with it like a real cat to find them; all zero tokens)

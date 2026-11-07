@@ -55,6 +55,14 @@ public sealed class AppSettings
     // 바로 답하기: 계산·단위·다른 도시 시각·D-day 같은 간단한 질문은 Claude에게 보내지 않고 PC에서 답함 (토큰 0)
     public bool QuickAnswers { get; set; } = true;
 
+    // 친해질수록 할 줄 아는 것을 하나씩 소개하고, 아주 가끔 이스터에그 하는 법도 귀띔 (기능은 처음부터 다 켜져 있음)
+    public bool SkillIntros { get; set; } = true;
+    // 친밀도 (함께 켜 둔 시간·말풍선 열기·츄르로만 오름. Claude에게 묻는 건 세지 않음)와 이미 소개한 것들
+    public int Bond { get; set; }
+    public List<string> IntroducedSkills { get; set; } = new();
+    public List<string> HintedEggs { get; set; } = new();
+    public DateTime? LastIntroAt { get; set; }
+
     // 몸짓 알림: 알림 창이 뜨거나 프로그램이 멈추면 그 창으로 가서 몸짓, 오래 일하면 드러누움 (토큰 0)
     public bool BodyAlerts { get; set; } = true;
     // 쉬지 않고 몇 분 일하면 쉬라고 알릴지. 0이면 끔 (5분 넘게 입력이 없으면 쉰 것으로 봄)

@@ -291,6 +291,7 @@ public partial class MainWindow : Window
             if (min <= 0 || Thinking || !_claude.Running || DateTime.Now - _claude.LastUsed < TimeSpan.FromMinutes(min)) return;
             if (_claude.Sleep()) AppSettings.Log($"[절약] {min}분 동안 질문이 없어서 claude 프로세스를 끔 (다음 질문 때 같은 대화로 다시 켜짐)");
         };
+        _idleTimer.Tick += (_, _) => BondMinute();   // 친밀도 (MainWindow.Bond.cs)
         _idleTimer.Start();
         Closed += (_, _) => _idleTimer.Stop();
     }
@@ -762,8 +763,9 @@ public partial class MainWindow : Window
         {
             _unread = false;
             ShowAlertInBubble();   // 몸짓 알림 중이었으면 무엇 때문인지 보여 줌 (토큰 0)
-            GreetCatDay();
-            BubbleActivity();         // 고양이의 날이면 첫 인사 (MainWindow.Eggs.cs)
+            GreetCatDay();            // 고양이의 날이면 첫 인사 (MainWindow.Eggs.cs)
+            IntroduceOnOpen();        // 친해진 만큼 할 줄 아는 것 소개 (MainWindow.Bond.cs)
+            BubbleActivity();
             // 점프·벽 타기 중이었다면 바닥(또는 올라가 있던 창 위)에 내려놓고 앉힘
             CancelTrip();
             _jumpY = 0;

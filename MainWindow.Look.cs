@@ -189,6 +189,16 @@ public partial class MainWindow
         };
         CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), quick);
 
+        // 할 줄 아는 것 알려 주기 (소개 + 아주 가끔 이스터에그 귀띔. MainWindow.Bond.cs)
+        var intros = new MenuItem { Header = L.T("할 줄 아는 것 알려 주기", "Tell me what you can do"), IsCheckable = true, IsChecked = _settings.SkillIntros };
+        intros.Click += (_, _) =>
+        {
+            _settings.SkillIntros = intros.IsChecked;
+            if (!intros.IsChecked) _pendingEggHint = null;
+            try { _settings.Save(); } catch { }
+        };
+        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), intros);
+
         // 몸짓 알림 켜기/끄기 (알림 창·응답 없는 앱·오래 일함. 토큰 0)
         var alerts = new MenuItem { Header = L.T("몸짓 알림 (오류 창·멈춘 앱·휴식)", "Body-language alerts (dialogs, frozen apps, breaks)"), IsCheckable = true, IsChecked = _settings.BodyAlerts };
         alerts.Click += (_, _) =>

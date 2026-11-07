@@ -348,3 +348,4 @@ dotnet publish -c Release -p:ApiKeyOnly=true -p:PublishSingleFile=true -p:Includ
 - GitHub 새 버전 알림을 끕니다 (업데이트는 배포처가 담당).
 - "Claude"·Anthropic 이름과 로고를 앱 이름이나 대표 이미지로 쓰지 말고, 호환성 설명에만 쓰세요. 무료 배포를 권합니다.
 - `LICENSE`와 `THIRD-PARTY-NOTICES.md`를 함께 배포하세요.
+- Steam 출시 준비물(스토어 글, 이미지, AI 공개 설문, 업로드 스크립트)은 [`steam/`](steam/README.md) 폴더에 있습니다.

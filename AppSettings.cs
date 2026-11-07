@@ -19,7 +19,8 @@ public sealed class AppSettings
     public bool ShowStats { get; set; } = true;
 
     // 윈도우 로그인 시 자동 실행
-    public bool AutoStart { get; set; } = true;
+    // 배포판(Steam 등)은 사용자가 메뉴에서 켜기 전까지 끔 (동의 없이 자동 실행하지 않게)
+    public bool AutoStart { get; set; } = !Edition.ApiKeyOnly;
 
     // 사용할 모델. 비우면 Claude Code 기본 모델을 따름 (예: "opus", "sonnet", "haiku")
     public string Model { get; set; } = "";
@@ -149,8 +150,9 @@ public sealed class AppSettings
     public static readonly string InstallDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "GAFIL");
 
+    // 배포판은 배포처(Steam 등)가 정한 설치 폴더에서 실행되므로 어디서든 설치본으로 봄
     public static bool IsInstalledCopy =>
-        Environment.ProcessPath is string p && IsUnder(p, InstallDir, InstallDir);
+        Edition.ApiKeyOnly || (Environment.ProcessPath is string p && IsUnder(p, InstallDir, InstallDir));
 
     // 설정값에 맞게 Run 키를 등록하거나 지움. 설치 위치에서 실행 중일 때만 손댐
     public void ApplyAutoStart()

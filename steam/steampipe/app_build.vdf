@@ -1,0 +1,20 @@
+"AppBuild"
+{
+	"AppID" "APP_ID"
+	"Desc" "GAFIL Steam build"
+	"ContentRoot" "content\"
+	"BuildOutput" "output\"
+	"Depots"
+	{
+		"DEPOT_ID"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "*"
+				"DepotPath" "."
+				"Recursive" "1"
+			}
+			"FileExclusion" "*.pdb"
+		}
+	}
+}

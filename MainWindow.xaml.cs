@@ -174,6 +174,9 @@ public partial class MainWindow : Window
 
         _settings = AppSettings.Load();
         L.Init(_settings.Language);
+#if DEBUG
+        if (Environment.GetEnvironmentVariable("GAFIL_LANG") is { Length: > 0 } demoLang) L.Init(demoLang);   // 스크린샷용 (MainWindow.Demo.cs)
+#endif
         ApplyLanguage();
         _settings.ApplyAutoStart();     // exe 위치가 바뀌었어도 자동 실행 경로를 최신으로 맞춤
         _claude = new ClaudeClient(_settings) { Approve = ShowApprovalAsync };
@@ -243,6 +246,9 @@ public partial class MainWindow : Window
         InitIdleSleep();
         SetupMenu();
         InitSetup();
+#if DEBUG
+        InitDemo();
+#endif
 
         // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
         // (Closing이 아니라 Closed: 닫기가 취소될 수 있으므로 정말 닫힌 뒤에만 정리)

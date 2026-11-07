@@ -3,6 +3,8 @@ bin/
 obj/
 dist/
 dist-apikey/
+steam/steampipe/content/
+steam/steampipe/output/
 *.pdb
 
 # 개인 설계 메모 (공개하지 않음)

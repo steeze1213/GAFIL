@@ -347,3 +347,4 @@ dotnet publish -c Release -p:ApiKeyOnly=true -p:PublishSingleFile=true -p:Includ
 - GitHub update notices are off (the store handles updates).
 - Don't use the "Claude" / Anthropic names or logos as the app's name or key art; use them only to describe compatibility. Free distribution is recommended.
 - Ship `LICENSE` and `THIRD-PARTY-NOTICES.md` alongside it.
+- Steam launch kit (store text, art, AI disclosure, upload script) lives in [`steam/`](steam/README.md).

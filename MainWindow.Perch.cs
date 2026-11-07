@@ -137,7 +137,7 @@ public partial class MainWindow
     private const double CaptionButtons = 170;     // 창 오른쪽 위 최소화·최대화·닫기 버튼 자리 (가리지 않기)
 
     // 발판: 창 윗변 중 다른 창에 가리지 않은 구간. Top·X1·X2는 DIP
-    private readonly record struct Platform(IntPtr Hwnd, double Top, double X1, double X2, double WinLeft, double WinRight);
+    private readonly record struct Platform(IntPtr Hwnd, double Top, double X1, double X2, double WinLeft, double WinRight, double WinBottom);
 
     private IntPtr _perch;              // 올라가 있는 창 (Zero = 바닥)
     private RECT _perchRect;            // 그 창의 마지막 위치 (실제 픽셀)
@@ -232,7 +232,7 @@ public partial class MainWindow
                 segs = segs.SelectMany(s => Cut(s, oa, ob)).ToList();
             }
             foreach (var s in segs)
-                if (s.B - s.A >= CatWidth + 10) list.Add(new Platform(wins[i].H, top, s.A, s.B, left, right));
+                if (s.B - s.A >= CatWidth + 10) list.Add(new Platform(wins[i].H, top, s.A, s.B, left, right, r.Bottom / sy));
         }
         return list;
     }
@@ -473,8 +473,10 @@ public partial class MainWindow
     }
 
     // 벽 타기에 쓸 옆변 X (DIP). 고양이에게 가까운 쪽 먼저. 그 변이 덮였거나 화면 밖이면 다른 쪽, 둘 다 안 되면 null
+    // 창 아래쪽이 바닥에서 점프로 닿는 높이여야 함 (창이 공중에 떠 있으면 옆변까지 허공을 기어오르게 됨)
     private double? ClimbEdge(Rect wa, Platform g)
     {
+        if (GrabHeight(wa, g) > MaxLeapUp) return null;
         var sides = new List<double>();
         if (Math.Abs(g.X1 - g.WinLeft) < 2) sides.Add(g.X1);
         if (Math.Abs(g.X2 - g.WinRight) < 2) sides.Add(g.X2);
@@ -482,6 +484,11 @@ public partial class MainWindow
             if (x - HalfWidth() >= wa.Left && x + HalfWidth() <= wa.Right) return x;
         return null;
     }
+
+    // 벽 타기 전에 옆변에 매달리려면 뛰어올라야 하는 높이 (창 아래쪽 조금 위). 창이 바닥까지 내려와 있으면 0
+    private static double GrabHeight(Rect wa, Platform g) => Math.Max(0, wa.Bottom - g.WinBottom + 10);
+
+    private bool _grabbing;   // 벽 타기 시작: 창 옆변에 매달리려고 뛰어오르는 중
 
     private void StartTrip(List<(IntPtr Target, bool Climb)> path)
     {
@@ -539,6 +546,10 @@ public partial class MainWindow
                         _state = CatState.Climb;
                         _phase = TripPhase.Climb;
                         _phaseTicks = (int)((wa.Bottom - t.Top) / ClimbSpeed) + 300;   // 다 오를 시간 + 여유
+                        // 창 아래쪽이 바닥보다 높으면 먼저 옆변까지 뛰어올라 매달림
+                        double grab = GrabHeight(wa, t);
+                        _grabbing = grab > 12;
+                        if (_grabbing) { _jumpVy = Math.Sqrt(2 * Gravity * grab) + Gravity; _dir = Math.Abs(_climbX - t.X1) < Math.Abs(_climbX - t.X2) ? 1 : -1; }
                     }
                     else { _state = CatState.Crouch; _phase = TripPhase.Crouch; _phaseTicks = 18; _dir = LandX(wa, t) >= _centerX ? 1 : -1; }
                     return;
@@ -564,8 +575,20 @@ public partial class MainWindow
             case TripPhase.Climb:
             {
                 var t = target.Value;
+                // 창이 움직였으면 옆변을 다시 찾음. 옆변이 사라졌거나 창 아래쪽이 고양이보다 위로 올라가 버렸으면 떨어짐
+                if (ClimbEdge(wa, t) is not double ex2) { AbortTrip(); return; }
+                _climbX = ex2;
                 _centerX = _climbX;
                 double h = wa.Bottom - t.Top;
+                if (_grabbing)
+                {
+                    // 옆변에 매달리려고 뛰어오르는 중 (도약 그림)
+                    _jumpY += _jumpVy;
+                    _jumpVy -= Gravity;
+                    if (_jumpVy <= 0 || _jumpY >= GrabHeight(wa, t)) { _grabbing = false; _jumpVy = 0; }
+                    return;
+                }
+                if (_jumpY < GrabHeight(wa, t) - 20) { AbortTrip(); return; }
                 _jumpY += ClimbSpeed;
                 if (_jumpY >= h - 4)
                 {
@@ -585,6 +608,7 @@ public partial class MainWindow
     private void AbortTrip()
     {
         bool climbing = _phase == TripPhase.Climb;
+        _grabbing = false;
         CancelTrip();
         if (climbing && _jumpY > 0) { _jumpVy = 0; _vx = 0; _state = CatState.Jump; return; }
         if (_state != CatState.Jump) ChooseNextState();

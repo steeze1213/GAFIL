@@ -285,6 +285,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.4.2** — No more climbing thin air under a floating window: the cat jumps up to grab the window's side first, and skips climbing if the window floats too high
 - **v1.4.1** — Clicking the cat high up on a window no longer drops it to the floor; the bubble opens below the cat instead (expanding grows downward)
 - **v1.4.0** — The cat now climbs onto windows now and then (direct jump, hopping via lower windows, or climbing a window's side). On top it walks, loafs with its tail hanging, and peeks down; it rides along when the window moves and drops when it closes. 9 new poses (crouch, leap, land, climb, loaf, peek, belly-up)
 - **v1.3.2** — Bigger sleeping "Z" (the small one looked like a capital I)

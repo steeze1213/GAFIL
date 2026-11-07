@@ -623,7 +623,7 @@ public partial class MainWindow : Window
                 CatState.Pant => (_animTick / 12) % 2 == 0 ? PantA : PantB,   // 약 0.2초마다 혀를 넣었다 뺐다
                 CatState.Crouch => CrouchFrame,
                 CatState.Land => LandFrame,
-                CatState.Climb => (_animTick / 10) % 2 == 0 ? ClimbA : ClimbB,   // 앞발·뒷발 번갈아
+                CatState.Climb => _grabbing ? LeapFrame : (_animTick / 10) % 2 == 0 ? ClimbA : ClimbB,   // 매달리러 뛰어오른 뒤 앞발·뒷발 번갈아
                 CatState.Loaf => (_animTick / 30) % 2 == 0 ? LedgeA : LedgeB,    // 늘어뜨린 꼬리 끝을 살랑살랑
                 CatState.Peek => PeekFrame,
                 CatState.Belly => BellyFrame,

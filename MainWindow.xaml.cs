@@ -685,7 +685,9 @@ public partial class MainWindow : Window
         if (_bubbleOpen)
         {
             w = OpenWidth;
-            h = _expanded ? wa.Height : OpenHeight;      // 크게 보기면 화면 위쪽 끝까지
+            // 창 위 높은 곳이면 말풍선을 아래로 엶 (MainWindow.Perch.cs). 크게 보기면 여는 쪽 화면 끝까지
+            SetBubbleBelow(WantBubbleBelow(wa));
+            h = _expanded ? Math.Max(OpenHeight, BubbleSpace(wa)) : OpenHeight;
         }
         else
         {
@@ -699,9 +701,10 @@ public partial class MainWindow : Window
         Width = w;
         Height = h;
         Left = _centerX - w / 2;
-        // 창 위에 올라가 있으면 그 창의 윗변이 바닥. 말풍선을 열었는데 위에 자리가 없으면 바닥으로 내려옴
-        if (_bubbleOpen && Perched && (_expanded || PerchTopDip - h < wa.Top)) DropToFloor();
-        Top = GroundY(wa) - h - _jumpY + SinkFor(_drawnFrame);      // 점프 중이면 그만큼 위로
+        if (!_bubbleOpen) SetBubbleBelow(false);
+        // 창 위에 올라가 있으면 그 창의 윗변이 바닥. 말풍선을 아래로 열 땐 창의 맨 위가 고양이 머리
+        Top = _bubbleBelow ? GroundY(wa) - CatHeight - _jumpY
+                           : GroundY(wa) - h - _jumpY + SinkFor(_drawnFrame);      // 점프 중이면 그만큼 위로
     }
 
     // ---------------- 말풍선 ----------------
@@ -751,10 +754,10 @@ public partial class MainWindow : Window
     private void SetExpanded(bool expanded, bool apply = true)
     {
         _expanded = expanded;
-        if (expanded && Perched) DropToFloor();   // 크게 보기는 화면 높이를 다 쓰므로 창 위에서 바닥으로
         var wa = WorkArea;
         // 최대 높이만 올리면 대화가 짧을 때 말풍선이 그대로라서, 크게 보기에서는 높이 자체를 정해 줌
-        double tall = Math.Max(ChatMaxNormal, wa.Height - CatHeight - BubbleChrome);
+        // 쓸 수 있는 높이: 바닥이면 화면 전체, 창 위면 말풍선을 여는 쪽(위·아래)의 화면 끝까지
+        double tall = Math.Max(ChatMaxNormal, BubbleSpace(wa) - CatHeight - BubbleChrome);
         ChatScroll.MaxHeight = expanded ? tall : ChatMaxNormal;
         ChatScroll.Height = expanded ? tall : double.NaN;   // NaN = 내용에 맞춤
         ExpandButton.Content = expanded ? "" : "";   // 작게 보기 / 크게 보기 아이콘

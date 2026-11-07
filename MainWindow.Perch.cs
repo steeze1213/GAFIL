@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 
 namespace ClaudeDesk;
@@ -164,12 +165,34 @@ public partial class MainWindow
     // 고양이가 서 있는 높이(창 아래쪽이 닿는 Y, DIP): 창 위면 그 창의 윗변, 아니면 바닥
     private double GroundY(Rect wa) => Perched ? PerchTopDip : wa.Bottom;
 
-    // 창 위에서 공중을 거치지 않고 바로 바닥으로 옮겨짐 (말풍선을 크게 열 때 등): 창 위에서만 하는 자세는 앉기로
-    private void DropToFloor()
+    // ---------------- 창 위에서 말풍선 ----------------
+
+    private bool _bubbleBelow;   // 말풍선을 고양이 아래로 여는 중 (창 위 높은 곳이라 위에 자리가 없음)
+
+    // 말풍선을 아래로 열어야 하는지: 창 위에 있고, 고양이 위로 보통 크기 말풍선이 들어갈 자리가 없으면
+    private bool WantBubbleBelow(Rect wa) => _bubbleOpen && Perched && GroundY(wa) - OpenHeight < wa.Top;
+
+    // 크게 보기에서 쓸 수 있는 창 높이: 위로 열면 화면 위쪽 끝까지, 아래로 열면 화면 아래쪽 끝까지
+    private double BubbleSpace(Rect wa) => _bubbleBelow ? wa.Bottom - (GroundY(wa) - CatHeight) : GroundY(wa) - wa.Top;
+
+    // 말풍선 위치 바꾸기: 아래로 열면 고양이가 맨 위 줄, 말풍선은 그 아래(꼬리는 위를 가리킴)
+    private void SetBubbleBelow(bool below)
     {
-        _perch = IntPtr.Zero;
-        _jumpY = 0;
-        if (_state is CatState.Loaf or CatState.Peek) _state = CatState.Sit;
+        if (below == _bubbleBelow) return;
+        _bubbleBelow = below;
+        Grid.SetRow(Cat, below ? 0 : 2);
+        Grid.SetRow(Bubble, below ? 2 : 0);
+        RowTop.Height = below ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        RowBottom.Height = below ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        Cat.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        Bubble.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        Bubble.Margin = below ? new Thickness(0, 2, 0, 0) : new Thickness(0, 0, 0, 2);
+        // 꼬리: 위로 열 땐 말풍선 아래에서 아래를, 아래로 열 땐 말풍선 위에서 위를 가리킴
+        Bubble.Children.Remove(BubbleTail);
+        if (below) Bubble.Children.Insert(0, BubbleTail); else Bubble.Children.Add(BubbleTail);
+        BubbleTail.Data = Geometry.Parse(below ? "M0,9 L9,0 L18,9" : "M0,0 L9,9 L18,0");
+        BubbleTail.Margin = below ? new Thickness(0, 0, 0, -2.5) : new Thickness(0, -2.5, 0, 0);
+        if (_expanded) SetExpanded(true, apply: false);   // 쓸 수 있는 높이가 달라짐
     }
 
     // 엎드림·내려다보기 그림은 아래 몇 행이 윗변 아래로 내려오도록 창을 그만큼 내림
@@ -276,7 +299,11 @@ public partial class MainWindow
         double top = r.Top / dpi.DpiScaleY;
         double left = r.Left / dpi.DpiScaleX, right = r.Right / dpi.DpiScaleX;
         bool roomAbove = top - CatHeight - 6 >= wa.Top && top <= wa.Bottom - 40;
-        if (!roomAbove || _centerX < left + 8 || _centerX > right - 8) { FallFromPerch(wa); return; }
+        if (!roomAbove) { FallFromPerch(wa); return; }
+        // 말풍선이 열려 있는 동안은 대화 중이므로 웬만하면 그대로 둠 (창이 사라지거나 화면 끝으로 가면 그때만 내려옴).
+        // 말풍선 폭 때문에 고양이가 창 끝에서 살짝 밀려났을 수도 있음
+        if (_bubbleOpen) return;
+        if (_centerX < left + 8 || _centerX > right - 8) { FallFromPerch(wa); return; }
 
         // 0.1초마다 다시 확인: 다른 창이 올라와 서 있는 곳을 덮었으면 떨어짐
         RefreshPlatforms(wa);

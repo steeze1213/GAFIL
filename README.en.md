@@ -29,6 +29,7 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 | 😺 Moods | Pants when the CPU is busy, sweats when the GPU is hot, and at night it moves slowly and naps with Zz |
 | 🎨 Dress up | Right-click → **Change look**: 5 fur colors, 4 outfits |
 | 💾 History | Conversation and context carry over after a restart |
+| 🪟 Climbs onto windows | Now and then it **jumps onto the top edge** of an open window to walk, loaf with its tail hanging, or peek down. Too high? It hops up via lower windows or **climbs the window's side**. Move the window and it rides along; close it and the cat drops (it never looks at window contents; can be turned off in the menu) |
 | 🐱 Meow | **Now and then** it meows: when a reminder fires, when a reply arrives while the bubble is closed, when you put it down (about once per 10 minutes; can be turned off in the menu) |
 | 🌐 Korean / English | Follows your Windows display language (can be fixed in settings) |
 | ⬆ Update notice | The cat tells you when a new version is out, with a one-click download from the menu |
@@ -123,7 +124,7 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 - **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking
 - **Drag**: pick it up by the scruff. It drops to the floor where you release it and stays on that monitor
 - **Drop files/text**: they appear as 📎 chips above the input box → type what to do, or just press `Enter` (summarize)
-- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
+- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Climb onto windows, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
 
 ### The speech bubble
 
@@ -184,6 +185,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
   "CheckUpdates": true,
   "SaveHistory": true,
   "Meow": true,
+  "ClimbWindows": true,
   "VoiceHotkey": "Ctrl+Alt+Space",
   "VoiceAutoSendMs": 1800
 }
@@ -202,6 +204,7 @@ Right-click → **Open settings file** (`%LOCALAPPDATA%\ClaudeDesk\settings.json
 | `CheckUpdates` | Check for new versions (once a day) |
 | `SaveHistory` | Save the conversation. `false` = don't save and delete the existing history |
 | `Meow` | Occasional meows. `false` = quiet (reminders use the Windows notification sound) |
+| `ClimbWindows` | Now and then climb onto windows. `false` = stay on the floor |
 | `VoiceHotkey` | Hotkey for talking. Empty = off |
 | `VoiceAutoSendMs` | How long to wait after you stop speaking before sending (ms). `0` = no auto-send, press Enter |
 
@@ -262,7 +265,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar) |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
 | `L.cs` | Korean/English strings |
@@ -282,6 +285,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.4.0** — The cat now climbs onto windows now and then (direct jump, hopping via lower windows, or climbing a window's side). On top it walks, loafs with its tail hanging, and peeks down; it rides along when the window moves and drops when it closes. 9 new poses (crouch, leap, land, climb, loaf, peek, belly-up)
 - **v1.3.2** — Bigger sleeping "Z" (the small one looked like a capital I)
 - **v1.3.1** — More natural meow (a short, chirpy "nyang")
 - **v1.3.0** — Screen control works on every monitor (picks a monitor, red border on each), the cat hops on top of an auto-hiding taskbar or dock when it pops up, occasional meows

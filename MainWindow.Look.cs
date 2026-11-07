@@ -48,6 +48,13 @@ public partial class MainWindow
         ["bowtie"] = new[] { (6, 6, 'B'), (7, 6, 'K'), (8, 6, 'K'), (9, 6, 'B') },
     };
 
+    // 벽 타기(등이 보이는 모습) 기준 좌표 (머리: 귀 5·10열 0행, 목 5행). 선글라스·나비넥타이는 앞쪽이라 안 보임
+    private static readonly Dictionary<string, (int X, int Y, char C)[]> OutfitBack = new()
+    {
+        ["crown"] = new[] { (6, 0, 'Y'), (9, 0, 'Y'), (6, 1, 'Y'), (7, 1, 'Y'), (8, 1, 'Y'), (9, 1, 'Y') },
+        ["scarf"] = new[] { (5, 5, 'R'), (6, 5, 'R'), (7, 5, 'R'), (8, 5, 'R'), (9, 5, 'R'), (10, 5, 'R') },
+    };
+
     // 지금 털 색으로 만든 팔레트 (문자 → 색)
     private Dictionary<char, SolidColorBrush> _palette;
 
@@ -87,16 +94,30 @@ public partial class MainWindow
         if (string.IsNullOrEmpty(id) || id == "none") yield break;
 
         bool hanging = ReferenceEquals(frame, HangC) || ReferenceEquals(frame, HangL) || ReferenceEquals(frame, HangR);
-        var table = hanging ? OutfitFront : OutfitSide;
+        bool back = ReferenceEquals(frame, ClimbA) || ReferenceEquals(frame, ClimbB);   // 벽 타기는 등이 보이는 모습
+        var table = hanging ? OutfitFront : back ? OutfitBack : OutfitSide;
         if (!table.TryGetValue(id, out var dots)) yield break;
 
-        int dy = ReferenceEquals(frame, LieFrame) ? 3 : 0;   // 누운 그림은 머리가 3칸 아래
+        // 옆모습마다 머리가 내려온 칸 수 (누운 그림 3칸, 웅크리기 3칸, 착지 4칸, 창 위 엎드림 1칸, 배 보이기 3칸)
+        int dy = ReferenceEquals(frame, LieFrame) || ReferenceEquals(frame, CrouchFrame) || ReferenceEquals(frame, BellyFrame) ? 3
+               : ReferenceEquals(frame, LandFrame) ? 4
+               : ReferenceEquals(frame, LedgeA) || ReferenceEquals(frame, LedgeB) ? 1
+               : 0;
+        // 내려다보기: 머리가 윗변 아래로 5칸 내려가고 이마가 한 칸 길어서 눈은 6칸. 목은 안 보임
+        bool peek = ReferenceEquals(frame, PeekFrame);
         // 흔들린 매달림 그림은 6행부터 몸이 옆으로 밀려 있음(SwingRows) → 장식도 같은 만큼 밀어 줌
         int swing = ReferenceEquals(frame, HangL) ? -1 : ReferenceEquals(frame, HangR) ? 1 : 0;
+        bool mirror = ReferenceEquals(frame, ClimbB);   // 벽 타기 B는 A를 좌우로 뒤집은 그림
         foreach (var (x, y, c) in dots)
         {
+            if (peek)
+            {
+                if (y >= 5) continue;
+                yield return (x, y + (y >= 2 ? 6 : 5), c);
+                continue;
+            }
             int sx = y < 6 ? 0 : y < 9 ? swing : swing * 2;
-            yield return (x + sx, y + dy, c);
+            yield return (mirror ? 15 - x : x + sx, y + dy, c);
         }
     }
 
@@ -141,6 +162,17 @@ public partial class MainWindow
             if (meow.IsChecked) CatMeow.TryMeow(true, force: true);   // 켜면 한 번 들려줌
         };
         CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), meow);
+
+        // 창 위로 올라가기 켜기/끄기 (끄면 올라가 있던 고양이도 내려옴)
+        var climb = new MenuItem { Header = L.T("창 위로 올라가기", "Climb onto windows"), IsCheckable = true, IsChecked = _settings.ClimbWindows };
+        climb.Click += (_, _) =>
+        {
+            _settings.ClimbWindows = climb.IsChecked;
+            try { _settings.Save(); } catch { }
+            if (!climb.IsChecked) { if (OnTrip) AbortTrip(); if (Perched) StepOffPerch(); }
+            else _nextExplore = DateTime.Now.AddSeconds(5);   // 켜면 곧 한 번 올라가 봄
+        };
+        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), climb);
     }
 
     private void SaveLook()

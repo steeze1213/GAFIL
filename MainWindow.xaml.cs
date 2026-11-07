@@ -133,7 +133,7 @@ public partial class MainWindow : Window
     // 색 팔레트는 고른 털 색에 따라 만듦 (MainWindow.Look.cs의 _palette)
 
     // 고양이가 할 수 있는 행동
-    private enum CatState { Walk, Sit, Lie, Jump, Pant }
+    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly }
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly DispatcherTimer _dotsTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
@@ -512,29 +512,42 @@ public partial class MainWindow : Window
             UpdateSprite();
             return;
         }
-        if (_bubbleOpen || _menuOpen) return;     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
+        bool wasPerched = Perched;
+        TrackPerch();                             // 올라가 있는 창이 움직이면 따라가고, 사라지면 떨어짐 (MainWindow.Perch.cs)
+        // 말풍선이 열려 있는 동안 창이 움직이거나 사라져도(→ 바닥으로) 위치를 맞춤
+        if (_bubbleOpen || _menuOpen) { if (wasPerched) ApplyPosition(); return; }     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
         _animTick++;
         if (UpdateRunToReminder()) { UpdateSprite(); ApplyPosition(); return; }   // 알림 때문에 달려가는 중 (공중이면 먼저 착지)
 
         var wa = WorkArea;
+        // 화면 조작 중에는 창 위에 있으면 클릭을 가리지 않게 내려옴
+        if (_claude.ScreenActive && Perched && _state != CatState.Jump) StepOffPerch();
 
-        if (_state != CatState.Jump && --_stateTicks <= 0)
-            ChooseNextState();
-
-        switch (_state)
+        if (OnTrip && _state != CatState.Jump)
+            UpdateTrip(wa);   // 창 위로 가는 중 (걷기·웅크리기·벽 타기)
+        else
         {
-            case CatState.Walk: UpdateWalk(wa); break;
-            case CatState.Jump: UpdateJump(); break;
+            if (_state != CatState.Jump && --_stateTicks <= 0)
+                ChooseNextState();
+
+            switch (_state)
+            {
+                case CatState.Walk: UpdateWalk(wa); break;
+                case CatState.Jump: UpdateAir(wa); break;
+            }
         }
 
         UpdateSprite();
         ApplyPosition();
     }
 
-    // 다음 행동을 확률로 고름: 걷기 45%, 앉기 20%, 눕기 15%, 점프 20%
+    // 다음 행동을 확률로 고름: 걷기 45%, 앉기 18%, 눕기 15%, 배 보이기 4%, 점프 18%
+    // 가끔(1~3분에 한 번쯤) 창 위로 올라가기. 창 위에 있으면 창 위의 행동을 고름 (MainWindow.Perch.cs)
     private void ChooseNextState()
     {
         if (TryChooseMoodState()) return;   // 밤·CPU 바쁨 등 기분이 먼저
+        if (Perched) { ChoosePerchState(); return; }
+        if (_rnd.Next(100) < 30 && TryStartExplore()) return;
         int roll = _rnd.Next(100);
 
         if (roll < 45)
@@ -543,15 +556,20 @@ public partial class MainWindow : Window
             _stateTicks = _rnd.Next(120, 300);     // 약 2~5초
             _dir = _rnd.Next(2) == 0 ? -1 : 1;
         }
-        else if (roll < 65)
+        else if (roll < 63)
         {
             _state = CatState.Sit;
             _stateTicks = _rnd.Next(120, 240);     // 약 2~4초
         }
-        else if (roll < 80)
+        else if (roll < 78)
         {
             _state = CatState.Lie;
             _stateTicks = _rnd.Next(180, 360);     // 약 3~6초
+        }
+        else if (roll < 82)
+        {
+            _state = CatState.Belly;
+            _stateTicks = _rnd.Next(240, 420);     // 약 4~7초 배를 보이며 뒹굴
         }
         else
         {
@@ -566,10 +584,8 @@ public partial class MainWindow : Window
 
         _centerX += _dir * CurrentWalkSpeed;
 
-        // 화면 가장자리에 닿으면 방향을 바꿈 (시스템 정보 줄이 보이면 그 폭까지 화면 안에 들어오게)
-        double half = HalfWidth();
-        double min = wa.Left + half;
-        double max = wa.Right - half;
+        // 화면 가장자리(창 위라면 그 창 윗변의 끝)에 닿으면 방향을 바꿈 (시스템 정보 줄이 보이면 그 폭까지 화면 안에 들어오게)
+        var (min, max) = StandRange(wa);
         if (_centerX <= min || _centerX >= max)
         {
             _dir = -_dir;
@@ -581,28 +597,13 @@ public partial class MainWindow : Window
     private double HalfWidth() =>
         (StatsPill.Visibility == Visibility.Visible ? IdleWidth : CatWidth) / 2;
 
+    // 제자리 점프: 조금 앞으로 나가며 뛰어오름. 공중 처리는 UpdateAir (창 위에서 뛰면 보통 그 창 위로 다시 내려앉음)
     private void StartJump()
     {
         _state = CatState.Jump;
         _jumpY = 0;
         _jumpVy = JumpPower;
-    }
-
-    // 점프: 위로 올라갔다가 중력으로 떨어지고, 바닥에 닿으면 다음 행동을 고름
-    private void UpdateJump()
-    {
-        var wa = WorkArea;
-        // 점프하면서 조금 앞으로 나감 (화면 밖으로 나가지 않게 제한)
-        double half = HalfWidth();
-        _centerX = Math.Clamp(_centerX + _dir * 1.8, wa.Left + half, wa.Right - half);
-        _jumpY += _jumpVy;
-        _jumpVy -= Gravity;
-
-        if (_jumpY <= 0)
-        {
-            _jumpY = 0;
-            ChooseNextState();
-        }
+        _vx = _dir * 1.8;
     }
 
     // 현재 행동에 맞는 프레임 고르기. 말풍선이 열려 있으면 앉아서 듣고, 생각 중이면 눈을 감음
@@ -620,7 +621,13 @@ public partial class MainWindow : Window
                 CatState.Sit => SitFrame,
                 CatState.Lie => LieFrame,
                 CatState.Pant => (_animTick / 12) % 2 == 0 ? PantA : PantB,   // 약 0.2초마다 혀를 넣었다 뺐다
-                _ => JumpFrame,
+                CatState.Crouch => CrouchFrame,
+                CatState.Land => LandFrame,
+                CatState.Climb => (_animTick / 10) % 2 == 0 ? ClimbA : ClimbB,   // 앞발·뒷발 번갈아
+                CatState.Loaf => (_animTick / 30) % 2 == 0 ? LedgeA : LedgeB,    // 늘어뜨린 꼬리 끝을 살랑살랑
+                CatState.Peek => PeekFrame,
+                CatState.Belly => BellyFrame,
+                _ => _leaping ? LeapFrame : JumpFrame,
             };
 
         bool flip = _dir < 0 && !_dragging;     // 왼쪽을 보고 있으면 좌우 반전 (들려 있을 땐 정면)
@@ -692,7 +699,9 @@ public partial class MainWindow : Window
         Width = w;
         Height = h;
         Left = _centerX - w / 2;
-        Top = wa.Bottom - h - _jumpY;      // 점프 중이면 그만큼 위로
+        // 창 위에 올라가 있으면 그 창의 윗변이 바닥. 말풍선을 열었는데 위에 자리가 없으면 바닥으로 내려옴
+        if (_bubbleOpen && Perched && (_expanded || PerchTopDip - h < wa.Top)) DropToFloor();
+        Top = GroundY(wa) - h - _jumpY + SinkFor(_drawnFrame);      // 점프 중이면 그만큼 위로
     }
 
     // ---------------- 말풍선 ----------------
@@ -707,9 +716,11 @@ public partial class MainWindow : Window
         if (_bubbleOpen)
         {
             _unread = false;
-            // 점프 중이었다면 바닥으로 내려놓고 앉힘
+            // 점프·벽 타기 중이었다면 바닥(또는 올라가 있던 창 위)에 내려놓고 앉힘
+            CancelTrip();
             _jumpY = 0;
-            if (_state == CatState.Jump) _state = CatState.Sit;
+            _vx = 0;
+            if (_state is CatState.Jump or CatState.Climb or CatState.Crouch or CatState.Land) _state = CatState.Sit;
 
             // 창이 커지므로 화면 밖으로 나가지 않도록 중심 위치를 보정
             var wa = WorkArea;
@@ -740,6 +751,7 @@ public partial class MainWindow : Window
     private void SetExpanded(bool expanded, bool apply = true)
     {
         _expanded = expanded;
+        if (expanded && Perched) DropToFloor();   // 크게 보기는 화면 높이를 다 쓰므로 창 위에서 바닥으로
         var wa = WorkArea;
         // 최대 높이만 올리면 대화가 짧을 때 말풍선이 그대로라서, 크게 보기에서는 높이 자체를 정해 줌
         double tall = Math.Max(ChatMaxNormal, wa.Height - CatHeight - BubbleChrome);

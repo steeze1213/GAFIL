@@ -49,6 +49,9 @@ public sealed class AppSettings
     // 가끔 야옹 (알림·닫힌 동안 온 답·내려놓기 때만, 알림 말고는 10분에 한 번까지)
     public bool Meow { get; set; } = true;
 
+    // 가끔 창 위로 올라가기 (창 윗변을 발판으로 점프·벽 타기)
+    public bool ClimbWindows { get; set; } = true;
+
     // 대화 기록을 history.json에 저장해서 다시 켜도 이어가기
     public bool SaveHistory { get; set; } = true;
 

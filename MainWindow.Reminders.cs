@@ -44,6 +44,8 @@ public partial class MainWindow
     private bool UpdateRunToReminder()
     {
         if (!_runningToRemind) return false;
+        if (OnTrip) AbortTrip();   // 창 위로 가던 중이면 그만둠 (벽 타던 중이면 떨어짐)
+        if (Perched) { if (_state != CatState.Jump) StepOffPerch(); return false; }   // 창 위에 있으면 먼저 뛰어내림
         if (_state == CatState.Jump || _jumpY > 0) return false;
 
         // 목표는 매번 다시 계산: 그 사이 다른 모니터로 옮겼거나 배율이 바뀌어도 맞게

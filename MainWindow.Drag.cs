@@ -87,8 +87,11 @@ public partial class MainWindow
             if (!_dragging && (Math.Abs(p.X - _downAt.X) > DragThreshold || Math.Abs(p.Y - _downAt.Y) > DragThreshold))
             {
                 _dragging = true;
+                _perch = IntPtr.Zero;     // 창 위에 있었어도 들어 올림 (높이는 아래 FollowCursor가 바닥 기준으로 다시 정함)
+                CancelTrip();
                 _state = CatState.Jump;   // 놓으면 바로 떨어지도록 (들려 있는 동안 그림은 HangFrame)
                 _jumpVy = 0;
+                _vx = 0;
                 _swing = 0;
                 _lastDragX = p.X;
             }
@@ -117,9 +120,10 @@ public partial class MainWindow
                 return;
             }
 
-            // 놓은 자리에서 떨어지기 시작 (점프 상태에서 위로 속도 0 → 중력으로 떨어짐)
+            // 놓은 자리에서 떨어지기 시작 (점프 상태에서 위로 속도 0 → 중력으로 떨어짐). 창 위에 놓으면 그 창에 내려앉음
             _state = CatState.Jump;
             _jumpVy = 0;
+            _vx = 0;
 
             // 어느 모니터에 놓았는지 기억 (다시 켜도 그 모니터에서 시작)
             GetCursorPos(out var p);
@@ -149,6 +153,7 @@ public partial class MainWindow
             _mouseDown = false;
             _state = CatState.Jump;
             _jumpVy = 0;
+            _vx = 0;
         };
     }
 
@@ -179,8 +184,10 @@ public partial class MainWindow
         _dragging = false;
         _mouseDown = false;
         Cat.ReleaseMouseCapture();
+        _perch = IntPtr.Zero;
         _jumpY = 0;
         _jumpVy = 0;
+        _vx = 0;
         _state = CatState.Sit;
         _stateTicks = 120;
     }

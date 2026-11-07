@@ -124,6 +124,7 @@ public partial class MainWindow
             _state = CatState.Jump;
             _jumpVy = 0;
             _vx = 0;
+            _groomNext = true;   // 내려앉으면 흐트러진 털을 핥아 정리 (MainWindow.Cozy.cs)
 
             // 어느 모니터에 놓았는지 기억 (다시 켜도 그 모니터에서 시작)
             GetCursorPos(out var p);

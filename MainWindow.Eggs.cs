@@ -217,6 +217,7 @@ public partial class MainWindow
         AddCatLine(L.T("츄르다!! 냠냠냠… 골골골골 ♥\n(이건 Claude한테 안 보냈어. 토큰 0)", "Churu!! Nom nom nom… purrrr ♥\n(Not sent to Claude. Zero tokens.)"));
         ChatScroll.ScrollToEnd();
         _heartTicks = 300;   // 약 5초
+        KneadNow();          // 하트 보내며 꾹꾹이 (MainWindow.Cozy.cs)
         CatMeow.TryMeow(_settings.Meow, force: true);
         AppSettings.Log("[이스터에그] 츄르");
         return true;

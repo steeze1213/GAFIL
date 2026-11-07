@@ -199,7 +199,9 @@ public partial class MainWindow
     // 엎드림·내려다보기 그림은 아래 몇 행이 윗변 아래로 내려오도록 창을 그만큼 내림
     private double SinkFor(string[] frame) =>
         !_bubbleOpen && Perched && (ReferenceEquals(frame, LedgeA) || ReferenceEquals(frame, LedgeB) || ReferenceEquals(frame, PeekFrame))
-            ? LedgeSinkRows * Cell : 0;
+            ? LedgeSinkRows * Cell
+        : !_bubbleOpen && Perched && (ReferenceEquals(frame, BoxA) || ReferenceEquals(frame, BoxB)) ? Cell   // 상자 그림 맨 아래 행이 창 윗변에 겹침
+        : 0;
 
     // ---------------- 창 찾기 ----------------
 
@@ -672,13 +674,14 @@ public partial class MainWindow
     {
         int roll = _rnd.Next(100);
         bool clearOfButtons = _centerX + CatWidth / 2 < _perchRect.Right / VisualTreeHelper.GetDpi(this).DpiScaleX - CaptionButtons;
+        if (TrySitInBox(clearOfButtons)) return;   // 새로 뜬 작은 창에 왔으면 쏙 들어감 (MainWindow.Cozy.cs)
         if (roll < 30) { _state = CatState.Walk; _stateTicks = _rnd.Next(90, 240); _dir = _rnd.Next(2) == 0 ? -1 : 1; }
         else if (roll < 45) { _state = CatState.Sit; _stateTicks = _rnd.Next(120, 300); }
         else if (roll < 65 && clearOfButtons) { _state = CatState.Loaf; _stateTicks = _rnd.Next(300, 700); }
         else if (roll < 75 && clearOfButtons) { _state = CatState.Peek; _stateTicks = _rnd.Next(150, 300); }
         else if (roll < 82) { _state = CatState.Lie; _stateTicks = _rnd.Next(240, 480); }
         else if (roll < 97 || !clearOfButtons) StepOffPerch();
-        else { _state = CatState.Sit; _stateTicks = 120; }
+        else { _state = CatState.Knead; _stateTicks = _rnd.Next(180, 300); }
     }
 
     // ---------------- Win32 ----------------

@@ -105,8 +105,8 @@ public partial class MainWindow
 
         // 옆모습마다 머리가 내려온 칸 수 (누운 그림 3칸, 웅크리기 3칸, 착지 4칸, 창 위 엎드림 1칸, 배 보이기 3칸)
         int dy = ReferenceEquals(frame, LieFrame) || ReferenceEquals(frame, CrouchFrame) || ReferenceEquals(frame, BellyFrame) ? 3
-               : ReferenceEquals(frame, LandFrame) ? 4
-               : ReferenceEquals(frame, LedgeA) || ReferenceEquals(frame, LedgeB) ? 1
+               : ReferenceEquals(frame, LandFrame) || ReferenceEquals(frame, BoxA) || ReferenceEquals(frame, BoxB) ? 4
+               : ReferenceEquals(frame, LedgeA) || ReferenceEquals(frame, LedgeB) || ReferenceEquals(frame, KneadA) || ReferenceEquals(frame, KneadB) ? 1
                : 0;
         // 내려다보기: 머리가 윗변 아래로 5칸 내려가고 이마가 한 칸 길어서 눈은 6칸. 목은 안 보임
         bool peek = ReferenceEquals(frame, PeekFrame);
@@ -179,6 +179,15 @@ public partial class MainWindow
             else _nextExplore = DateTime.Now.AddSeconds(5);   // 켜면 곧 한 번 올라가 봄
         };
         CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), climb);
+
+        // 바로 답하기 켜기/끄기 (계산·단위·시각·D-day는 PC에서. 토큰 0)
+        var quick = new MenuItem { Header = L.T("간단한 계산은 바로 답하기 (토큰 0)", "Answer simple math here (zero tokens)"), IsCheckable = true, IsChecked = _settings.QuickAnswers };
+        quick.Click += (_, _) =>
+        {
+            _settings.QuickAnswers = quick.IsChecked;
+            try { _settings.Save(); } catch { }
+        };
+        CatMenu.Items.Insert(CatMenu.Items.IndexOf(MenuStats), quick);
 
         // 몸짓 알림 켜기/끄기 (알림 창·응답 없는 앱·오래 일함. 토큰 0)
         var alerts = new MenuItem { Header = L.T("몸짓 알림 (오류 창·멈춘 앱·휴식)", "Body-language alerts (dialogs, frozen apps, breaks)"), IsCheckable = true, IsChecked = _settings.BodyAlerts };

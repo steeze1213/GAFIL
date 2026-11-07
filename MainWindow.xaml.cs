@@ -133,7 +133,7 @@ public partial class MainWindow : Window
     // 색 팔레트는 고른 털 색에 따라 만듦 (MainWindow.Look.cs의 _palette)
 
     // 고양이가 할 수 있는 행동
-    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly, Tap, Hiss }
+    private enum CatState { Walk, Sit, Lie, Jump, Pant, Crouch, Land, Climb, Loaf, Peek, Belly, Tap, Hiss, Box, Groom, Knead }
 
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly DispatcherTimer _dotsTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
@@ -531,7 +531,7 @@ public partial class MainWindow : Window
         bool wasPerched = Perched;
         TrackPerch();                             // 올라가 있는 창이 움직이면 따라가고, 사라지면 떨어짐 (MainWindow.Perch.cs)
         // 말풍선이 열려 있는 동안 창이 움직이거나 사라져도(→ 바닥으로) 위치를 맞춤
-        if (_bubbleOpen || _menuOpen) { if (wasPerched) ApplyPosition(); TickHearts(); return; }     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
+        if (_bubbleOpen || _menuOpen) { if (wasPerched) ApplyPosition(); TickHearts(); TickBubbleCozy(); return; }     // 말풍선·메뉴가 열려 있으면 고양이는 멈춤
         _animTick++;
         if (UpdateRunToReminder()) { UpdateSprite(); ApplyPosition(); return; }   // 알림 때문에 달려가는 중 (공중이면 먼저 착지)
 
@@ -542,6 +542,7 @@ public partial class MainWindow : Window
         // 화면 조작 중에는 창 위에 있으면 클릭을 가리지 않게 내려옴
         if (_claude.ScreenActive && Perched && _state != CatState.Jump) StepOffPerch();
 
+        WatchNewWindows();   // 1초마다: 작은 창이 새로 떴는지 (MainWindow.Cozy.cs)
         if (OnTrip && _state != CatState.Jump)
             UpdateTrip(wa);   // 창 위로 가는 중 (걷기·웅크리기·벽 타기)
         else
@@ -565,7 +566,10 @@ public partial class MainWindow : Window
     private void ChooseNextState()
     {
         if (AlertActive && (_alertArrived || (Perched && _perch == _alertHwnd))) { HoldAlertPose(WorkArea); return; }   // 몸짓 알림 중이면 그대로
+        if (TryGroomAfterDrag()) return;    // 끌려다닌 뒤 그루밍 (MainWindow.Cozy.cs)
         if (TryStartZoomies()) return;      // 한밤중 하루 한 번 우다다 (MainWindow.Eggs.cs)
+        if (TryStartBox()) return;          // 작은 창이 새로 뜨면 그 위로 (MainWindow.Cozy.cs)
+        if (Perched && _boxTarget != IntPtr.Zero) { ChoosePerchState(); return; }   // 그 창에 도착 → 쏙 들어감
         if (TryChooseMoodState()) return;   // 밤·CPU 바쁨 등 기분이 먼저
         if (Perched) { ChoosePerchState(); return; }
         if (_rnd.Next(100) < 30 && TryStartExplore()) return;
@@ -577,20 +581,30 @@ public partial class MainWindow : Window
             _stateTicks = _rnd.Next(120, 300);     // 약 2~5초
             _dir = _rnd.Next(2) == 0 ? -1 : 1;
         }
-        else if (roll < 63)
+        else if (roll < 59)
         {
             _state = CatState.Sit;
             _stateTicks = _rnd.Next(120, 240);     // 약 2~4초
+        }
+        else if (roll < 63)
+        {
+            _state = CatState.Groom;
+            _stateTicks = _rnd.Next(150, 240);     // 약 2.5~4초 그루밍
         }
         else if (roll < 78)
         {
             _state = CatState.Lie;
             _stateTicks = _rnd.Next(180, 360);     // 약 3~6초
         }
-        else if (roll < 82)
+        else if (roll < 81)
         {
             _state = CatState.Belly;
             _stateTicks = _rnd.Next(240, 420);     // 약 4~7초 배를 보이며 뒹굴
+        }
+        else if (roll < 84)
+        {
+            _state = CatState.Knead;
+            _stateTicks = _rnd.Next(180, 300);     // 약 3~5초 꾹꾹이
         }
         else
         {
@@ -634,7 +648,9 @@ public partial class MainWindow : Window
         if (_dragging)
             frame = HangFrame();   // 목덜미를 잡힌 모습 (정면이라 좌우 반전 없음)
         else if (_bubbleOpen)
-            frame = Thinking && !_gotFirstText ? ThinkFrame : SitFrame;
+            frame = Thinking && !_gotFirstText ? ThinkFrame
+                  : _bubbleKneading ? ((_animTick / 16) % 2 == 0 ? KneadA : KneadB)   // 한동안 조용하면 꾹꾹이 (MainWindow.Cozy.cs)
+                  : SitFrame;
         else
             frame = _state switch
             {
@@ -649,6 +665,9 @@ public partial class MainWindow : Window
                 CatState.Peek => PeekFrame,
                 CatState.Belly => BellyFrame,
                 CatState.Tap => (_animTick / 14) % 2 == 0 ? TapA : TapB,
+                CatState.Box => (_animTick / 40) % 2 == 0 ? BoxA : BoxB,         // 작은 창에 쏙 (MainWindow.Cozy.cs)
+                CatState.Groom => (_animTick / 12) % 2 == 0 ? GroomA : GroomB,   // 앞발 핥기
+                CatState.Knead => (_animTick / 16) % 2 == 0 ? KneadA : KneadB,   // 꾹꾹이
                 CatState.Hiss => HissFrame,   // 귀찮게 하면 하악 (MainWindow.Eggs.cs)   // 응답 없는 창을 앞발로 툭툭 (MainWindow.Alerts.cs)
                 _ => _leaping ? LeapFrame : JumpFrame,
             };
@@ -743,7 +762,8 @@ public partial class MainWindow : Window
         {
             _unread = false;
             ShowAlertInBubble();   // 몸짓 알림 중이었으면 무엇 때문인지 보여 줌 (토큰 0)
-            GreetCatDay();         // 고양이의 날이면 첫 인사 (MainWindow.Eggs.cs)
+            GreetCatDay();
+            BubbleActivity();         // 고양이의 날이면 첫 인사 (MainWindow.Eggs.cs)
             // 점프·벽 타기 중이었다면 바닥(또는 올라가 있던 창 위)에 내려놓고 앉힘
             CancelTrip();
             _jumpY = 0;
@@ -913,8 +933,11 @@ public partial class MainWindow : Window
     // ---------------- 질문 보내기 ----------------
 
     // 입력창이 비었을 때만 안내 문구 표시
-    private void Input_TextChanged(object sender, TextChangedEventArgs e) =>
+    private void Input_TextChanged(object sender, TextChangedEventArgs e)
+    {
         Placeholder.Visibility = Input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BubbleActivity();   // 입력 중엔 꾹꾹이 안 함
+    }
 
     // 입력창에서 Enter → 질문 전송. Shift+Enter는 줄바꿈
     private async void Input_KeyDown(object sender, KeyEventArgs e)
@@ -930,6 +953,7 @@ public partial class MainWindow : Window
         }
 
         if (TryChuru()) return;   // "츄르"는 Claude에게 보내지 않고 고양이가 받아먹음 (MainWindow.Eggs.cs)
+        if (TryQuickAnswer()) return;   // 계산·단위·시각·D-day는 PC에서 바로 (MainWindow.Quick.cs)
         await SubmitInputAsync(fromVoice: false);
     }
 

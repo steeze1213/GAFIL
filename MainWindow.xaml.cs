@@ -242,6 +242,7 @@ public partial class MainWindow : Window
         InitAlerts();
         InitIdleSleep();
         SetupMenu();
+        InitSetup();
 
         // 앱이 꺼지면 실행 중인 claude 프로세스와 측정 타이머도 정리
         // (Closing이 아니라 Closed: 닫기가 취소될 수 있으므로 정말 닫힌 뒤에만 정리)

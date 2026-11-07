@@ -351,8 +351,8 @@ public sealed class ClaudeClient : IDisposable
         if (_proc != null) Kill();   // 죽은 프로세스 정리
 
         string exe = FindClaude()
-            ?? throw new ClaudeException(L.T("claude 명령을 찾지 못했어. Claude Code를 설치하고 터미널에서 한 번 'claude'로 로그인해 줘.",
-                "Couldn't find the 'claude' command. Install Claude Code and log in once by running 'claude' in a terminal."));
+            ?? throw new ClaudeException(L.T("claude 명령을 찾지 못했어. 오른쪽 클릭 → Claude 연결 설정에서 버튼 하나로 설치할 수 있어.",
+                "Couldn't find the 'claude' command. Right-click me → Connect to Claude to install it in one click."));
 
         var args = new StringBuilder("-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages");
         args.Append(" --permission-prompt-tool stdio");      // 승인 요청을 표준 입출력으로 받음
@@ -919,7 +919,9 @@ public sealed class ClaudeClient : IDisposable
     {
         error ??= L.T("알 수 없는 오류", "Unknown error");
         if (error.Contains("login", StringComparison.OrdinalIgnoreCase) || error.Contains("auth", StringComparison.OrdinalIgnoreCase))
-            error += L.T("\n→ 터미널에서 'claude'를 실행해 로그인해 줘.", "\n→ Run 'claude' in a terminal and log in.");
+            error += L.T("\n→ 오른쪽 클릭 → Claude 연결 설정에서 로그인하거나 API 키를 넣어 줘.", "\n→ Right-click me → Connect to Claude to log in or add an API key.");
+        else if (error.Contains("git-bash", StringComparison.OrdinalIgnoreCase) || error.Contains("git bash", StringComparison.OrdinalIgnoreCase))
+            error += L.T("\n→ Git for Windows(https://git-scm.com/download/win)를 설치하고 GAFIL을 다시 켜 줘.", "\n→ Install Git for Windows (https://git-scm.com/download/win) and restart GAFIL.");
         return error;
     }
 
@@ -937,7 +939,7 @@ public sealed class ClaudeClient : IDisposable
         n is JsonValue v && v.TryGetValue(out string s) ? s : null;
 
     // claude 실행 파일 찾기: 네이티브 실행 파일(.exe)을 npm 배치 파일(.cmd)보다 먼저 봄
-    private static string FindClaude()
+    internal static string FindClaude()
     {
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

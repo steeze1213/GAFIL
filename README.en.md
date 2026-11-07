@@ -59,7 +59,9 @@ Click it to talk and **Claude** answers. With your permission it can also run co
 
 ### 1. Install Claude Code and log in
 
-In PowerShell:
+> **Since v1.9 you can skip this.** If Claude Code is missing or not logged in when GAFIL first starts, a **setup helper** opens and lets you install it, log in with your subscription, or paste an API key with one click each. Reopen it any time: right-click → **Connect to Claude**.
+
+To do it yourself, in PowerShell:
 
 ```powershell
 irm https://claude.ai/install.ps1 | iex
@@ -112,7 +114,8 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 | To do this | Do this |
 |---|---|
 | Switch Claude accounts | In a terminal: `claude` → `/logout` → `/login` → right-click GAFIL → **New conversation** |
-| Use an API key instead of a subscription | Set the `ANTHROPIC_API_KEY` environment variable and restart GAFIL (billed by API usage) |
+| Use an API key instead of a subscription | Right-click → **Connect to Claude** → paste the key → **Save key** (stored in the user environment variable `ANTHROPIC_API_KEY`; billed by API usage) |
+| (Advanced) Other models or gateways | GAFIL is built for Claude, but it passes Claude Code's environment through. Point `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` at an Anthropic-compatible gateway (corporate proxy, LiteLLM, …) and requests go there. Not officially supported; models without tool use can't run commands or control the screen |
 | Pin a model | Set `"Model"` in the settings file to `"sonnet"`, `"opus"`, `"haiku"`, … → restart GAFIL. Empty = Claude Code's default |
 
 > Logins, settings and logs are stored per Windows user account.
@@ -128,7 +131,7 @@ GAFIL uses **whatever account Claude Code on that PC is logged into**. There's n
 - **`Ctrl+Alt+Space`** (anywhere) or 🎤 in the bubble: talk. It sends 1.8 s after you stop speaking
 - **Drag**: pick it up by the scruff. It drops to the floor where you release it and stays on that monitor
 - **Drop files/text**: they appear as 📎 chips above the input box → type what to do, or just press `Enter` (summarize)
-- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Climb onto windows, Answer simple math here, Tell me what you can do, Body-language alerts, Show CPU/GPU, Start with Windows, Open settings file, Open command log, Quit GAFIL
+- **Right-click**: menu — Talk, New conversation, Change look (fur / outfit), Meow sounds, Climb onto windows, Answer simple math here, Tell me what you can do, Body-language alerts, Show CPU/GPU, Start with Windows, Connect to Claude, Open settings file, Open command log, Quit GAFIL
 
 ### The speech bubble
 
@@ -279,7 +282,8 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros) |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros), `Setup` (opens the setup helper) |
+| `SetupWindow.cs` | Setup helper: install Claude Code, subscription login (`claude auth login`), save an API key, check the connection (`claude auth status`) |
 | `QuickAnswer.cs` | Quick-answer math: expressions, percentages, units, city times, D-days (only when it's sure; otherwise it goes to Claude) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
 | `Reminders.cs` | Reminder store + reminder tools (in-process MCP server `gafil_time`) |
@@ -300,6 +304,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.9.0** — Setup helper: if Claude Code is missing or not logged in on first start, install it, log in with your subscription or paste an API key with a button each. Reopen from "Connect to Claude" in the menu
 - **v1.8.0** — Skill intros: nothing is locked; the cat introduces its features one at a time as you get closer, and once you're close it very rarely whispers an easter egg in purple. Turn off in the menu
 - **v1.7.0** — Quick answers: math, percentages, units, city times and D-days are answered on your PC without asking Claude (zero tokens). Cat things: sits in newly opened small windows like a box, grooms after being carried, kneads when things are quiet
 - **v1.6.1** — Lighter: after 10 idle minutes the Claude process is shut down to free ~500 MB (the next question resumes the same conversation); the exe is no longer compressed, cutting GAFIL's own memory by ~60–120 MB (download is now ~160 MB)

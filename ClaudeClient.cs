@@ -354,6 +354,11 @@ public sealed class ClaudeClient : IDisposable
             ?? throw new ClaudeException(L.T("claude 명령을 찾지 못했어. 오른쪽 클릭 → Claude 연결 설정에서 버튼 하나로 설치할 수 있어.",
                 "Couldn't find the 'claude' command. Right-click me → Connect to Claude to install it in one click."));
 
+        // API 키 전용 배포판: 키가 없으면 구독 로그인으로 넘어가지 않도록 아예 실행하지 않음 (Edition.cs)
+        if (Edition.ApiKeyOnly && !Edition.HasApiKey())
+            throw new ClaudeException(L.T("이 배포판은 Anthropic API 키가 있어야 해. 오른쪽 클릭 → Claude 연결 설정에서 키를 넣어 줘.",
+                "This edition needs an Anthropic API key. Right-click me → Connect to Claude to add one."));
+
         var args = new StringBuilder("-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages");
         args.Append(" --permission-prompt-tool stdio");      // 승인 요청을 표준 입출력으로 받음
         args.Append($" --tools \"{ToolList}\"");

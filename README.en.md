@@ -283,6 +283,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
 | `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros), `Setup` (opens the setup helper) |
+| `Edition.cs` | Edition switch: default vs API-key-only (`-p:ApiKeyOnly=true`) |
 | `SetupWindow.cs` | Setup helper: install Claude Code, subscription login (`claude auth login`), save an API key, check the connection (`claude auth status`) |
 | `QuickAnswer.cs` | Quick-answer math: expressions, percentages, units, city times, D-days (only when it's sure; otherwise it goes to Claude) |
 | `CatMeow.cs` | Meow sound synthesized in code (no audio files) |
@@ -304,6 +305,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.9.1** — API-key-only edition build for redistributors (`-p:ApiKeyOnly=true`), third-party notices (THIRD-PARTY-NOTICES.md). The default edition is unchanged
 - **v1.9.0** — Setup helper: if Claude Code is missing or not logged in on first start, install it, log in with your subscription or paste an API key with a button each. Reopen from "Connect to Claude" in the menu
 - **v1.8.0** — Skill intros: nothing is locked; the cat introduces its features one at a time as you get closer, and once you're close it very rarely whispers an easter egg in purple. Turn off in the menu
 - **v1.7.0** — Quick answers: math, percentages, units, city times and D-days are answered on your PC without asking Claude (zero tokens). Cat things: sits in newly opened small windows like a box, grooms after being carried, kneads when things are quiet
@@ -328,3 +330,19 @@ Code comments are in Korean.
 
 GAFIL's pixel cat was drawn for this project and is not an official Anthropic character.
 "Claude" is a trademark of Anthropic; this is an unofficial project not affiliated with Anthropic.
+Licenses of bundled components such as the .NET runtime are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+### Redistributing GAFIL (API-key-only edition)
+
+Anthropic does not allow apps distributed by other developers to offer Claude subscription (claude.ai) login or subscription usage, and asks them to use **API keys** instead ([Agent SDK docs](https://code.claude.com/docs/en/agent-sdk/overview)).
+If you redistribute GAFIL (e.g. on Steam), build the **API-key-only edition**:
+
+```powershell
+dotnet publish -c Release -p:ApiKeyOnly=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -o dist-apikey
+```
+
+- The setup helper has no subscription login button and only accepts an Anthropic API key.
+- Without an API key it won't start Claude, so a subscription login on that PC is never used. (With a key, Claude Code uses the key first.)
+- GitHub update notices are off (the store handles updates).
+- Don't use the "Claude" / Anthropic names or logos as the app's name or key art; use them only to describe compatibility. Free distribution is recommended.
+- Ship `LICENSE` and `THIRD-PARTY-NOTICES.md` alongside it.

@@ -2,6 +2,7 @@
 bin/
 obj/
 dist/
+dist-apikey/
 *.pdb
 
 # 개인 설계 메모 (공개하지 않음)

@@ -42,7 +42,7 @@ public partial class MainWindow
         };
         CatMenu.Items.Insert(0, _updateMenu);
 
-        if (!_settings.CheckUpdates) return;
+        if (!_settings.CheckUpdates || Edition.ApiKeyOnly) return;   // 배포판은 배포처(Steam 등)가 업데이트를 맡음
         _updateTimer.Tick += async (_, _) => await CheckForUpdateAsync();
         Loaded += async (_, _) =>
         {

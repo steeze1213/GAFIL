@@ -47,12 +47,20 @@ public sealed class SetupWindow : Window
 
         // 2. Claude 연결
         root.Children.Add(Step("2", L.T("Claude 연결", "Connect to Claude"), _authState));
+        if (Edition.ApiKeyOnly)
+        {
+            root.Children.Add(Text(L.T("이 배포판은 Anthropic 정책에 따라 Anthropic API 키로만 연결돼. 쓴 만큼 요금이 나가.",
+                                       "Per Anthropic's policy, this edition connects only with an Anthropic API key (pay as you go)."), 12, Muted, margin: new Thickness(26, 2, 0, 8)));
+        }
+        else
+        {
         root.Children.Add(Text(L.T("둘 중 하나만 하면 돼.", "Pick one."), 12, Muted, margin: new Thickness(26, 2, 0, 8)));
         root.Children.Add(Text(L.T("A. Claude Pro / Max 구독이 있으면 (추천)", "A. If you have Claude Pro / Max (recommended)"), 12.5, Ink, FontWeights.SemiBold, new Thickness(26, 0, 0, 2)));
         root.Children.Add(Text(L.T("누르면 브라우저가 열려. Claude 계정으로 로그인하고 '허용'을 누르면 끝.",
                                    "Your browser opens. Log in to Claude and press Authorize."), 12, Muted, margin: new Thickness(26, 0, 0, 6)));
         root.Children.Add(Row(new Thickness(26, 0, 0, 12), _loginBtn, Link(L.T("구독 알아보기", "See plans"), "https://claude.com/pricing")));
         root.Children.Add(Text(L.T("B. API 키로 쓰기 (쓴 만큼 요금)", "B. Use an API key (pay as you go)"), 12.5, Ink, FontWeights.SemiBold, new Thickness(26, 0, 0, 2)));
+        }
         root.Children.Add(Text(L.T("Anthropic Console에서 키를 만들어 붙여 넣어. 이 PC의 사용자 환경 변수(ANTHROPIC_API_KEY)에 저장돼.",
                                    "Create a key in the Anthropic Console and paste it. It's saved to this PC's user environment variable ANTHROPIC_API_KEY."), 12, Muted, margin: new Thickness(26, 0, 0, 6)));
         var keyRow = new DockPanel { Margin = new Thickness(26, 0, 0, 4) };
@@ -86,6 +94,7 @@ public sealed class SetupWindow : Window
     public static bool NeedsSetup()
     {
         if (ClaudeClient.FindClaude() == null) return true;
+        if (Edition.ApiKeyOnly) return !Edition.HasApiKey();
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"))) return false;
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_AUTH_TOKEN"))) return false;
         string dir = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
@@ -113,7 +122,7 @@ public sealed class SetupWindow : Window
                 if (checkAuth || !_loggedIn)
                 {
                     SetState(_authState, false, L.T("확인하는 중…", "Checking…"), Muted);
-                    _loggedIn = await Task.Run(() => CheckLogin(exe));
+                    _loggedIn = (!Edition.ApiKeyOnly || Edition.HasApiKey()) && await Task.Run(() => CheckLogin(exe));
                 }
                 SetState(_authState, _loggedIn, _loggedIn ? L.T("✓ 연결됨", "✓ Connected") : L.T("아직 안 됨", "Not yet"));
             }
@@ -140,7 +149,10 @@ public sealed class SetupWindow : Window
             int at = json.IndexOf('{');
             if (at < 0) return false;
             using var doc = JsonDocument.Parse(json[at..]);
-            return doc.RootElement.TryGetProperty("loggedIn", out var v) && v.ValueKind == JsonValueKind.True;
+            if (!doc.RootElement.TryGetProperty("loggedIn", out var v) || v.ValueKind != JsonValueKind.True) return false;
+            // API 키 전용 배포판: 구독 로그인이 아니라 API 키로 연결됐는지까지 봄
+            if (!Edition.ApiKeyOnly) return true;
+            return doc.RootElement.TryGetProperty("apiKeySource", out var src) && src.GetString() == "ANTHROPIC_API_KEY";
         }
         catch (Exception ex) { AppSettings.Log($"[시작 도우미] 로그인 확인 실패: {ex.Message}"); return false; }
     }
@@ -162,6 +174,7 @@ public sealed class SetupWindow : Window
 
     private async void RunLogin()
     {
+        if (Edition.ApiKeyOnly) return;   // 배포판에는 구독 로그인이 없음
         ShowNote(null);
         string exe = ClaudeClient.FindClaude();
         if (exe == null) { await Refresh(true); return; }

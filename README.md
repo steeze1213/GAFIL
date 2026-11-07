@@ -284,6 +284,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 |---|---|
 | `MainWindow.xaml(.cs)` | 고양이 행동·픽셀 그리기, 말풍선, 메뉴, 화면 조작 모드 |
 | `MainWindow.*.cs` | 기능별 나눔: `Drag`(집어 옮기기), `Drop`(끌어다 주기), `History`(대화 기록), `Mood`(기분), `Look`(꾸미기), `Reminders`(알림), `Update`(새 버전), `OpenHotkey`(단축키), `Voice`(말로 하기), `Taskbar`(작업표시줄 피하기), `Perch`(창 위로 올라가기), `Alerts`(몸짓 알림), `Eggs`(숨은 재미), `Cozy`(상자·그루밍·꾹꾹이), `Quick`(바로 답하기), `Bond`(친밀도·소개), `Setup`(시작 도우미 열기) |
+| `Edition.cs` | 배포판 구분: 기본판과 API 키 전용 배포판(`-p:ApiKeyOnly=true`) |
 | `SetupWindow.cs` | 시작 도우미: Claude Code 설치, 구독 로그인(`claude auth login`), API 키 저장, 연결 확인(`claude auth status`) |
 | `QuickAnswer.cs` | 바로 답하기 계산: 계산식·퍼센트·단위·도시 시각·D-day (확실히 알아들을 때만, 아니면 Claude에게) |
 | `CatMeow.cs` | 야옹 소리를 코드로 합성 (녹음 파일 없음) |
@@ -305,6 +306,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 
 ## 버전 기록
 
+- **v1.9.1** — 다시 배포하는 사람을 위한 API 키 전용 배포판 빌드(`-p:ApiKeyOnly=true`), 제3자 라이선스 고지(THIRD-PARTY-NOTICES.md) 추가. 기본판은 그대로
 - **v1.9.0** — 시작 도우미: 처음 켰을 때 Claude Code가 없거나 로그인이 안 돼 있으면 설치·구독 로그인·API 키 입력을 버튼으로 도와줌. 메뉴 "Claude 연결 설정"으로 언제든
 - **v1.8.0** — 할 줄 아는 것 소개: 기능은 잠그지 않고, 친해질수록 고양이가 하나씩 알려 줌. 많이 친해지면 아주 드물게 숨은 재미 하는 법을 보라색으로 귀띔. 메뉴에서 끄기
 - **v1.7.0** — 바로 답하기: 계산·퍼센트·단위·다른 도시 시각·D-day는 Claude에게 보내지 않고 PC에서 답함(토큰 0). 고양이다운 행동: 새로 뜬 작은 창에 쏙 들어가기, 옮긴 뒤 그루밍, 조용하면 꾹꾹이
@@ -329,3 +331,19 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 
 GAFIL의 픽셀 고양이는 이 프로젝트를 위해 직접 그린 것이며 Anthropic의 공식 캐릭터가 아닙니다.
 "Claude"는 Anthropic의 상표이며, 이 프로젝트는 Anthropic과 관련이 없는 비공식 프로젝트입니다.
+함께 묶인 .NET 런타임 등의 라이선스는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)에 있습니다.
+
+### 다시 배포하려는 분께 (API 키 전용 배포판)
+
+Anthropic은 다른 개발자가 배포하는 앱이 Claude 구독(claude.ai) 로그인이나 구독 사용량을 쓰게 하는 것을 허용하지 않고, **API 키**를 쓰도록 안내합니다 ([Agent SDK 문서](https://code.claude.com/docs/en/agent-sdk/overview)).
+GAFIL을 Steam 같은 곳에 다시 배포한다면 **API 키 전용 배포판**으로 빌드하세요:
+
+```powershell
+dotnet publish -c Release -p:ApiKeyOnly=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -o dist-apikey
+```
+
+- 시작 도우미에 구독 로그인 버튼이 없고, Anthropic API 키만 받습니다.
+- API 키가 없으면 Claude를 실행하지 않으므로, 그 PC에 구독 로그인이 있어도 쓰지 않습니다. (API 키가 있으면 Claude Code가 키를 우선 사용)
+- GitHub 새 버전 알림을 끕니다 (업데이트는 배포처가 담당).
+- "Claude"·Anthropic 이름과 로고를 앱 이름이나 대표 이미지로 쓰지 말고, 호환성 설명에만 쓰세요. 무료 배포를 권합니다.
+- `LICENSE`와 `THIRD-PARTY-NOTICES.md`를 함께 배포하세요.

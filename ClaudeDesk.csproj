@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>GAFIL</AssemblyName>
     <!-- 버전: GitHub Releases 태그(v1.1.0)와 맞춤. 업데이트 확인에 사용 -->
-    <Version>1.9.0</Version>
+    <Version>1.9.1</Version>
     <RootNamespace>ClaudeDesk</RootNamespace>
     <ApplicationIcon>gafil.ico</ApplicationIcon>
     <!-- 모니터별 DPI 인식(Per-Monitor V2): 화면 캡처·마우스 좌표를 실제 픽셀로 일관되게 (app.manifest 설명 참고) -->
@@ -19,6 +19,16 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
+
+  <!-- API 키 전용 배포판: dotnet publish ... -p:ApiKeyOnly=true (Edition.cs 참고) -->
+  <PropertyGroup Condition="'$(ApiKeyOnly)' == 'true'">
+    <DefineConstants>$(DefineConstants);API_KEY_ONLY</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 제3자 라이선스 고지: 실행 파일 옆에 함께 둠 -->
+    <None Include="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- 3단계: CPU 사용률(성능 카운터) 읽기용 -->

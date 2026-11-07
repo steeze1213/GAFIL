@@ -8,9 +8,9 @@ namespace ClaudeDesk;
 public static class Edition
 {
 #if API_KEY_ONLY
-    public const bool ApiKeyOnly = true;
+    public static readonly bool ApiKeyOnly = true;
 #else
-    public const bool ApiKeyOnly = false;
+    public static readonly bool ApiKeyOnly = false;
 #endif
 
     // ANTHROPIC_API_KEY가 있는지. GAFIL이 켜진 뒤 사용자 환경 변수에 넣은 경우도 찾아서 지금 프로세스에 반영 (claude가 물려받게)

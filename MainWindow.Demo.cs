@@ -14,6 +14,24 @@ public partial class MainWindow
 {
     private void InitDemo()
     {
+        // GAFIL_TEST_HOP="x,y": 3초 뒤 그 실제 픽셀 점이 있는 모니터로 건너감 (배율이 다른 모니터 표시 확인용)
+        if (Environment.GetEnvironmentVariable("GAFIL_TEST_HOP") is string hop && hop.Split(',') is [var hx, var hy])
+        {
+            Loaded += (_, _) =>
+            {
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                t.Tick += (_, _) =>
+                {
+                    t.Stop();
+                    var p = new POINT { X = int.Parse(hx), Y = int.Parse(hy) };
+                    _perch = IntPtr.Zero; _jumpY = 0; _vx = 0; _monitorPt = p;
+                    _centerX = p.X / VisualTreeHelper.GetDpi(this).DpiScaleX;
+                    _state = CatState.Sit;
+                };
+                t.Start();
+            };
+        }
+
         string demo = Environment.GetEnvironmentVariable("GAFIL_DEMO");
         if (string.IsNullOrEmpty(demo)) return;
         _settings.SkillIntros = false;   // 데모 중엔 진짜 소개가 끼어들지 않게

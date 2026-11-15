@@ -303,7 +303,7 @@ Settings are read when GAFIL starts. After saving, restart GAFIL (right-click �
 | File | Role |
 |---|---|
 | `MainWindow.xaml(.cs)` | Cat behavior & pixel drawing, speech bubble, menu, screen-control mode |
-| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros), `Setup` (opens the setup helper) |
+| `MainWindow.*.cs` | Split by feature: `Drag`, `Drop`, `History`, `Mood`, `Look`, `Reminders`, `Update`, `OpenHotkey`, `Voice`, `Taskbar` (stay clear of the taskbar), `Perch` (climbing onto windows), `Alerts` (body-language alerts), `Eggs` (hidden fun), `Cozy` (box, grooming, kneading), `Quick` (quick answers), `Bond` (closeness and intros), `Setup` (opens the setup helper), `Pill` (the line above the cat) |
 | `Edition.cs` | Edition switch: default vs API-key-only (`-p:ApiKeyOnly=true`) |
 | `SetupWindow.cs` | Setup helper: install Claude Code, subscription login guidance, save an API key, check the connection (`claude auth status`) |
 | `QuickAnswer.cs` | Quick-answer math: expressions, percentages, units, city times, D-days (only when it's sure; otherwise it goes to Claude) |
@@ -326,6 +326,7 @@ Code comments are in Korean.
 
 ## Changelog
 
+- **v1.9.3** — Fixed the CPU/GPU line above the cat showing only its background with no text on some monitors (happened after waking from sleep on PCs with two graphics chips)
 - **v1.9.2** — The setup helper no longer has a subscription login button, just guidance (log in to Claude Code yourself and GAFIL uses it), out of respect for Anthropic's policy
 - **v1.9.1** — API-key-only edition build for redistributors (`-p:ApiKeyOnly=true`), third-party notices (THIRD-PARTY-NOTICES.md). The default edition is unchanged
 - **v1.9.0** — Setup helper: if Claude Code is missing or not logged in on first start, install it, log in with your subscription or paste an API key with a button each. Reopen from "Connect to Claude" in the menu

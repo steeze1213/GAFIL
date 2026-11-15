@@ -144,6 +144,7 @@ public partial class MainWindow
             double ky = e.OldDpi.DpiScaleY / e.NewDpi.DpiScaleY;
             _centerX *= kx;
             _jumpY *= ky;
+            RebuildPillText();   // 글자 도형의 간격을 새 배율에 맞춤 (MainWindow.Pill.cs)
         };
 
         // 끌기 도중 마우스 캡처를 잃으면(다른 창이 뺏음 등) 그 자리에서 떨어지게

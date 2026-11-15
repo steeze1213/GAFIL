@@ -304,7 +304,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 | 파일 | 역할 |
 |---|---|
 | `MainWindow.xaml(.cs)` | 고양이 행동·픽셀 그리기, 말풍선, 메뉴, 화면 조작 모드 |
-| `MainWindow.*.cs` | 기능별 나눔: `Drag`(집어 옮기기), `Drop`(끌어다 주기), `History`(대화 기록), `Mood`(기분), `Look`(꾸미기), `Reminders`(알림), `Update`(새 버전), `OpenHotkey`(단축키), `Voice`(말로 하기), `Taskbar`(작업표시줄 피하기), `Perch`(창 위로 올라가기), `Alerts`(몸짓 알림), `Eggs`(숨은 재미), `Cozy`(상자·그루밍·꾹꾹이), `Quick`(바로 답하기), `Bond`(친밀도·소개), `Setup`(시작 도우미 열기) |
+| `MainWindow.*.cs` | 기능별 나눔: `Drag`(집어 옮기기), `Drop`(끌어다 주기), `History`(대화 기록), `Mood`(기분), `Look`(꾸미기), `Reminders`(알림), `Update`(새 버전), `OpenHotkey`(단축키), `Voice`(말로 하기), `Taskbar`(작업표시줄 피하기), `Perch`(창 위로 올라가기), `Alerts`(몸짓 알림), `Eggs`(숨은 재미), `Cozy`(상자·그루밍·꾹꾹이), `Quick`(바로 답하기), `Bond`(친밀도·소개), `Setup`(시작 도우미 열기), `Pill`(고양이 위 한 줄) |
 | `Edition.cs` | 배포판 구분: 기본판과 API 키 전용 배포판(`-p:ApiKeyOnly=true`) |
 | `SetupWindow.cs` | 시작 도우미: Claude Code 설치, 구독 로그인 안내, API 키 저장, 연결 확인(`claude auth status`) |
 | `QuickAnswer.cs` | 바로 답하기 계산: 계산식·퍼센트·단위·도시 시각·D-day (확실히 알아들을 때만, 아니면 Claude에게) |
@@ -327,6 +327,7 @@ GAFIL은 **허락 없이 PC를 바꾸지 않도록** 만들어져 있습니다.
 
 ## 버전 기록
 
+- **v1.9.3** — 고양이 위 CPU/GPU 표시가 다른 모니터에서 배경만 보이고 글자가 사라지던 문제 고침 (절전에서 깨어난 뒤 그래픽 장치가 둘인 PC에서 생김)
 - **v1.9.2** — 시작 도우미에서 구독 로그인 버튼을 빼고 안내로 바꿈 (구독은 Claude Code에 직접 로그인해 두면 그대로 씀). Anthropic 정책 배려
 - **v1.9.1** — 다시 배포하는 사람을 위한 API 키 전용 배포판 빌드(`-p:ApiKeyOnly=true`), 제3자 라이선스 고지(THIRD-PARTY-NOTICES.md) 추가. 기본판은 그대로
 - **v1.9.0** — 시작 도우미: 처음 켰을 때 Claude Code가 없거나 로그인이 안 돼 있으면 설치·구독 로그인·API 키 입력을 버튼으로 도와줌. 메뉴 "Claude 연결 설정"으로 언제든

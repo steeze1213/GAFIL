@@ -124,8 +124,9 @@
         <!-- 3단계: 대화하지 않을 때 고양이 위에 CPU/GPU 한 줄 표시 -->
         <Border x:Name="StatsPill" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Center"
                 Background="#D92B1A12" CornerRadius="9" Padding="8,2" Margin="0,0,0,3">
-            <TextBlock x:Name="StatsText" FontSize="10.5" Foreground="#FBE3D0"
-                       FontFamily="Cascadia Mono, Consolas, Malgun Gothic"/>
+            <!-- 글자를 도형(Path)으로 그림: 절전에서 깨어나거나 다른 그래픽 장치의 모니터로 옮긴 뒤
+                 글꼴 캐시가 깨져 글자만 사라지는 WPF 문제를 피함 (MainWindow.Pill.cs) -->
+            <Path x:Name="StatsText" Fill="#FBE3D0" SnapsToDevicePixels="True"/>
         </Border>
 
         <!-- 고양이: 칸(Rectangle)은 코드에서 그림. 왼쪽 클릭: 말풍선, 오른쪽 클릭: 메뉴 -->

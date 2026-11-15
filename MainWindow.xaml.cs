@@ -834,26 +834,26 @@ public partial class MainWindow : Window
         }
         else if (_dropHover)
         {
-            StatsText.Text = L.T("📎 여기 놓아줘", "📎 Drop it here");
+            PillText = L.T("📎 여기 놓아줘", "📎 Drop it here");
             StatsPill.ToolTip = null;
             StatsPill.Visibility = Visibility.Visible;
         }
         else if (_claude.ScreenActive)
         {
             // 화면 조작 중이면 다른 표시보다 먼저 알림
-            StatsText.Text = L.T("🐾 화면 조작 중", "🐾 Controlling screen");
+            PillText = L.T("🐾 화면 조작 중", "🐾 Controlling screen");
             StatsPill.ToolTip = L.T("GAFIL이 화면을 조작하는 중이에요 · 멈추기: ", "GAFIL is controlling the screen · stop: ") + StopHint;
             StatsPill.Visibility = Visibility.Visible;
         }
         else if (ShowUpdateNotice)
         {
-            StatsText.Text = _updateNoticeLabel;
+            PillText = _updateNoticeLabel;
             StatsPill.ToolTip = L.T("오른쪽 클릭 → 새 버전 받기", "Right-click → Get the new version");
             StatsPill.Visibility = Visibility.Visible;
         }
         else if (_unread)
         {
-            StatsText.Text = Thinking ? L.T("GAFIL 일하는 중…", "GAFIL is working…") : L.T("💬 GAFIL이 답했어", "💬 GAFIL replied");
+            PillText = Thinking ? L.T("GAFIL 일하는 중…", "GAFIL is working…") : L.T("💬 GAFIL이 답했어", "💬 GAFIL replied");
             StatsPill.ToolTip = L.T("고양이를 클릭해서 확인", "Click the cat to read it");
             StatsPill.Visibility = Visibility.Visible;
         }
@@ -862,7 +862,7 @@ public partial class MainWindow : Window
             var s = _lastStats;
             var g = s.Gpu;
             string temp = g.TempC is double t ? $" {t:0}°C" : "";
-            StatsText.Text = $"CPU {Pct(s.Cpu)} · GPU {Pct(g.Util)}{temp}";
+            PillText = $"CPU {Pct(s.Cpu)} · GPU {Pct(g.Util)}{temp}";
             string vram = g.VramUsedGB is double used
                 ? (g.VramTotalGB is double total ? $"\nVRAM {used:0.0} / {total:0} GB" : $"\nVRAM {used:0.0} GB")
                 : "\nVRAM N/A";
